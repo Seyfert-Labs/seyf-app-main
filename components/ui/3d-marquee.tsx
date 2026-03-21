@@ -24,10 +24,10 @@ const defaultImages = [
   'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=300&fit=crop',
   'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=400&h=300&fit=crop',
   'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=400&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1621761191319-c6fb62004040?w=400&h=300&fit=crop',
   'https://images.unsplash.com/photo-1642790106117-e829e14a795f?w=400&h=300&fit=crop',
   'https://images.unsplash.com/photo-1618044733300-9472054094ee?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1621761191319-c6fb62004040?w=400&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=400&h=300&fit=crop',
   'https://images.unsplash.com/photo-1633158829585-23ba8f7c8caf?w=400&h=300&fit=crop',
 ]
 
@@ -43,47 +43,59 @@ const ThreeDMarquee = ({
 
   return (
     <div
-      className={cn('absolute inset-0 overflow-hidden', className)}
-      style={{ perspective: '1000px' }}
+      className={cn(
+        'pointer-events-none relative mx-auto block w-full overflow-hidden rounded-md',
+        'min-h-[min(95svh,32rem)] sm:min-h-[36rem] md:min-h-[42rem] xl:min-h-0 xl:h-[56rem]',
+        className,
+      )}
     >
-      <div
-        style={{
-          transform: 'rotateX(35deg) rotateZ(45deg)',
-          transformOrigin: 'center center',
-          position: 'absolute',
-          top: '-30%',
-          left: '-30%',
-          width: '160%',
-          height: '160%',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '12px',
-        }}
-      >
-        {chunks.map((subarray, colIndex) => (
-          <motion.div
-            animate={{ y: colIndex % 2 === 0 ? 80 : -80 }}
-            transition={{
-              duration: colIndex % 2 === 0 ? 12 : 18,
-              repeat: Infinity,
-              repeatType: 'reverse',
-              ease: 'linear',
+      <div className="flex size-full min-h-0 items-center justify-center">
+        <div
+          className={cn(
+            'aspect-square w-full max-w-full min-w-0 shrink-0',
+            'scale-[1.95] sm:scale-[1.85] md:scale-[1.72] lg:scale-[1.62]',
+            'xl:size-[min(48rem,90vmin)] xl:max-w-none xl:scale-[1.78]',
+          )}
+        >
+          <div
+            style={{
+              transform: 'rotateX(45deg) rotateY(0deg) rotateZ(45deg)',
             }}
-            key={colIndex + 'marquee'}
-            style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
+            className={cn(
+              'relative grid size-full origin-top-left grid-cols-3 [transform-style:preserve-3d]',
+              // Móvil: menos offset y hueco; xl: alineación tipo demo original
+              'top-0 right-[-55%] gap-2 sm:gap-4 md:gap-5',
+              'xl:-top-[7.5rem] xl:right-[-45%]',
+            )}
           >
-            {subarray.map((src, imageIndex) => (
-              <div key={imageIndex + src} style={{ flexShrink: 0 }}>
-                <img
-                  src={src}
-                  draggable={false}
-                  alt={`Image ${imageIndex + 1}`}
-                  style={{ borderRadius: '6px', width: '100%', aspectRatio: '4/3', objectFit: 'cover', display: 'block' }}
-                />
-              </div>
+            {chunks.map((subarray, colIndex) => (
+              <motion.figure
+                animate={{ y: colIndex % 2 === 0 ? 60 : -60 }}
+                transition={{
+                  duration: colIndex % 2 === 0 ? 10 : 15,
+                  repeat: Infinity,
+                  repeatType: 'reverse',
+                  ease: 'easeInOut',
+                }}
+                key={colIndex + 'marquee'}
+                className="flex flex-col items-start gap-3 sm:gap-4 md:gap-6"
+              >
+                {subarray.map((src, imageIndex) => (
+                  <div className="relative w-full" key={imageIndex + src}>
+                    <img
+                      className="aspect-[4/3] h-full w-full select-none rounded-[4px] bg-muted object-cover sm:rounded-[6px] dark:bg-muted/80"
+                      src={src}
+                      draggable={false}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </div>
+                ))}
+              </motion.figure>
             ))}
-          </motion.div>
-        ))}
+          </div>
+        </div>
       </div>
     </div>
   )

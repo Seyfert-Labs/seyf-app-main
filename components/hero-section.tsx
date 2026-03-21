@@ -10,21 +10,24 @@ const fintechImages = [
   'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=300&fit=crop',
   'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=400&h=300&fit=crop',
   'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=400&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1621761191319-c6fb62004040?w=400&h=300&fit=crop',
   'https://images.unsplash.com/photo-1642790106117-e829e14a795f?w=400&h=300&fit=crop',
   'https://images.unsplash.com/photo-1618044733300-9472054094ee?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1621761191319-c6fb62004040?w=400&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=400&h=300&fit=crop',
   'https://images.unsplash.com/photo-1633158829585-23ba8f7c8caf?w=400&h=300&fit=crop',
 ]
 
 export default function HeroSection() {
   return (
-    <section className="relative min-h-screen w-full overflow-hidden bg-background">
+    <section className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-x-clip overflow-y-hidden bg-background">
       {/* 3D Marquee Background */}
-      <ThreeDMarquee images={fintechImages} className="opacity-50" />
+      <ThreeDMarquee
+        images={fintechImages}
+        className="absolute inset-0 z-0 h-full min-h-0 w-full rounded-none opacity-50"
+      />
 
       {/* Content overlay */}
-      <div className="relative z-20 flex min-h-screen flex-col items-center justify-center px-6 text-center">
+      <div className="relative z-20 flex min-h-0 flex-1 flex-col items-center justify-center px-6 text-center">
         {/* Transparent content box */}
         <div className="rounded-3xl border border-foreground/10 bg-background/40 px-8 py-10 backdrop-blur-sm">
           {/* Logo */}
