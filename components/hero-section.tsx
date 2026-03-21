@@ -1,28 +1,13 @@
 'use client'
 
-import ThreeDMarquee from '@/components/ui/3d-marquee'
-
-const fintechImages = [
-  'https://images.unsplash.com/photo-1563013544-824ae1b704d3?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1621761191319-c6fb62004040?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1642790106117-e829e14a795f?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1618044733300-9472054094ee?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1633158829585-23ba8f7c8caf?w=400&h=300&fit=crop',
-]
+import ThreeDMarquee, { MARQUEE_IMAGE_POOL } from '@/components/ui/3d-marquee'
 
 export default function HeroSection() {
   return (
     <section className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-x-clip overflow-y-hidden bg-background">
       {/* 3D Marquee Background */}
       <ThreeDMarquee
-        images={fintechImages}
+        images={[...MARQUEE_IMAGE_POOL]}
         className="absolute inset-0 z-0 h-full min-h-0 w-full rounded-none opacity-50"
       />
 
