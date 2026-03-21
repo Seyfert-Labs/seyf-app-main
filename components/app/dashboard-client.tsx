@@ -180,7 +180,7 @@ export default function DashboardClient() {
             Para depositar más, verifica tu identidad.
           </p>
           <Link
-            href="/verificacion"
+            href="/identidad"
             className="mt-2 inline-block text-xs font-bold text-amber-200/90 underline-offset-4 hover:underline"
           >
             Verificar ahora
