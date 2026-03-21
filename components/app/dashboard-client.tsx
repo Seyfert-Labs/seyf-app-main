@@ -1,8 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { Plus, ArrowLeftRight, Building2, MoreHorizontal, ChevronRight } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 import { AppPageBody } from '@/components/app/app-page-body'
+import { DashboardHeroCarousel } from '@/components/app/dashboard-hero-carousel'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -14,6 +15,7 @@ const mockData = {
   saldoGasto: 350,
   tasa: 9.8,
   diasRestantes: 18,
+  puntos: 1240,
 }
 
 const mockTransactions = [
@@ -59,66 +61,17 @@ function formatMXNFull(amount: number) {
 
 export default function DashboardClient() {
   const data = mockData
-  const balanceCompact = Math.round(data.principal)
 
   return (
     <AppPageBody className="space-y-6 pt-4">
-      {/* Hero — saldo */}
-      <section className="relative overflow-hidden rounded-[1.75rem] border border-border">
-        <div className="absolute inset-0 bg-gradient-to-br from-violet-950/80 via-card to-blue-950/60" />
-        <div className="absolute -right-16 -top-24 h-56 w-56 rounded-full bg-violet-500/25 blur-3xl" />
-        <div className="absolute -bottom-20 -left-12 h-48 w-48 rounded-full bg-blue-500/20 blur-3xl" />
-        <div
-          className="absolute inset-0 opacity-[0.12]"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0L60 30L30 60L0 30Z' fill='none' stroke='white' stroke-width='0.5'/%3E%3C/svg%3E")`,
-            backgroundSize: '48px 48px',
-          }}
-        />
-        <div className="relative px-6 pb-8 pt-10 text-center">
-          <p className="text-[13px] font-medium text-muted-foreground">Personal · MXN</p>
-          <p className="mt-1 text-[2.75rem] font-black leading-none tracking-tight tabular-nums text-foreground">
-            {formatMXN(balanceCompact)}
-          </p>
-          <p className="mt-2 text-xs text-muted-foreground">Disponible · {formatMXNFull(data.principal)} total</p>
-          <div className="mt-5 flex justify-center">
-            <button
-              type="button"
-              className="rounded-full bg-secondary px-5 py-2 text-sm font-semibold text-foreground ring-1 ring-border transition hover:bg-muted"
-            >
-              Saldos
-            </button>
-          </div>
-          <div className="mt-6 flex justify-center gap-1.5">
-            <span className="h-1 w-1.5 rounded-full bg-foreground" />
-            <span className="h-1 w-1.5 rounded-full bg-muted-foreground/40" />
-            <span className="h-1 w-1.5 rounded-full bg-muted-foreground/40" />
-          </div>
-        </div>
-      </section>
-
-      {/* Acciones rápidas */}
-      <section>
-        <div className="grid grid-cols-4 gap-2">
-          {[
-            { href: '/depositar', label: 'Añadir', icon: Plus },
-            { href: '/depositar', label: 'Cambio', icon: ArrowLeftRight },
-            { href: '/dashboard', label: 'Datos', icon: Building2 },
-            { href: '/historial', label: 'Más', icon: MoreHorizontal },
-          ].map(({ href, label, icon: Icon }) => (
-            <Link
-              key={label}
-              href={href}
-              className="flex flex-col items-center gap-2 rounded-2xl py-2 transition active:scale-[0.97]"
-            >
-              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-secondary ring-1 ring-border">
-                <Icon className="size-6 text-foreground" strokeWidth={2} />
-              </span>
-              <span className="text-center text-[11px] font-medium leading-tight text-muted-foreground">{label}</span>
-            </Link>
-          ))}
-        </div>
-      </section>
+      <DashboardHeroCarousel
+        data={{
+          principal: data.principal,
+          adelantable: data.adelantable,
+          puntos: data.puntos,
+          tasaAnual: data.tasa,
+        }}
+      />
 
       {/* Actividad reciente */}
       <section className="overflow-hidden rounded-[1.5rem] border border-border bg-card">
@@ -138,7 +91,7 @@ export default function DashboardClient() {
               <span
                 className={cn(
                   'shrink-0 text-sm font-bold tabular-nums',
-                  tx.amount < 0 ? 'text-foreground' : 'text-emerald-400/90',
+                  tx.amount < 0 ? 'text-foreground' : 'text-[#22C55E]',
                 )}
               >
                 {tx.amount < 0 ? '' : '+'}
