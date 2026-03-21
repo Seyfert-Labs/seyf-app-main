@@ -1,5 +1,6 @@
 'use server'
 
+import { clearEtherfuseOnboardingSession } from '@/lib/etherfuse/onboarding-session'
 import { generateOnboardingPresignedUrlResolving409 } from '@/lib/etherfuse/onboarding'
 import { newEtherfuseOnboardingIds } from '@/lib/etherfuse/integration-model'
 import {
@@ -11,6 +12,7 @@ import {
   isValidStellarPublicKey,
   normalizeStellarPublicKey,
 } from '@/lib/etherfuse/stellar-public-key'
+import { isKycTestResetEnabled } from '@/lib/seyf/kyc-test-reset'
 
 export type StartHostedOnboardingResult =
   | { ok: true; url: string }
@@ -53,4 +55,15 @@ export async function startHostedEtherfuseOnboarding(
     const message = e instanceof Error ? e.message : 'No se pudo iniciar la verificación.'
     return { ok: false, error: message }
   }
+}
+
+export type ResetKycTestSessionResult = { ok: true } | { ok: false; error: string }
+
+/** Solo con isKycTestResetEnabled(): borra la cookie Seyf ↔ Etherfuse en este navegador. */
+export async function resetKycTestSession(): Promise<ResetKycTestSessionResult> {
+  if (!isKycTestResetEnabled()) {
+    return { ok: false, error: 'Reinicio de prueba no disponible en este entorno.' }
+  }
+  await clearEtherfuseOnboardingSession()
+  return { ok: true }
 }
