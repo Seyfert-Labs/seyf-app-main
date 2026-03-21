@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers'
 import { z } from 'zod'
+import { normalizeStellarPublicKey } from '@/lib/etherfuse/stellar-public-key'
 
 const COOKIE_NAME = 'seyf_ef_onboarding'
 
@@ -30,7 +31,11 @@ export async function getEtherfuseOnboardingSession(): Promise<EtherfuseOnboardi
   try {
     const parsed = JSON.parse(raw) as unknown
     const out = sessionSchema.safeParse(parsed)
-    return out.success ? out.data : null
+    if (!out.success) return null
+    return {
+      ...out.data,
+      publicKey: normalizeStellarPublicKey(out.data.publicKey),
+    }
   } catch {
     return null
   }
@@ -40,7 +45,11 @@ export async function saveEtherfuseOnboardingSession(
   data: EtherfuseOnboardingSession,
 ): Promise<void> {
   const jar = await cookies()
-  jar.set(COOKIE_NAME, JSON.stringify(data), cookieOptions())
+  const normalized: EtherfuseOnboardingSession = {
+    ...data,
+    publicKey: normalizeStellarPublicKey(data.publicKey),
+  }
+  jar.set(COOKIE_NAME, JSON.stringify(normalized), cookieOptions())
 }
 
 export async function clearEtherfuseOnboardingSession(): Promise<void> {
@@ -57,7 +66,11 @@ export function resolveOnboardingIds(
   publicKey: string,
   freshIds: { customerId: string; bankAccountId: string },
 ): { customerId: string; bankAccountId: string } {
-  if (existing && existing.publicKey === publicKey) {
+  const next = normalizeStellarPublicKey(publicKey)
+  if (
+    existing &&
+    normalizeStellarPublicKey(existing.publicKey) === next
+  ) {
     return {
       customerId: existing.customerId,
       bankAccountId: existing.bankAccountId,

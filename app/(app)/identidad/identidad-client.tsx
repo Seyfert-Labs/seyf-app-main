@@ -1,11 +1,13 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { AppBackLink } from '@/components/app/app-back-link'
 import { AppPageBody } from '@/components/app/app-page-body'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import type { EtherfuseKycSnapshot } from '@/lib/etherfuse/kyc'
 import type { EtherfuseOnboardingSession } from '@/lib/etherfuse/onboarding-session'
 import { startHostedEtherfuseOnboarding } from './actions'
 
@@ -14,14 +16,33 @@ function maskPubkey(pk: string) {
   return `${pk.slice(0, 6)}…${pk.slice(-4)}`
 }
 
+function kycLabel(status: EtherfuseKycSnapshot['status']): string {
+  switch (status) {
+    case 'approved':
+    case 'approved_chain_deploying':
+      return 'Verificación aprobada'
+    case 'proposed':
+      return 'En revisión'
+    case 'rejected':
+      return 'Verificación rechazada'
+    case 'not_started':
+    default:
+      return 'Pendiente: completa el portal de Etherfuse'
+  }
+}
+
 export default function IdentidadClient({
   initialSession,
+  initialKyc,
 }: {
   initialSession: EtherfuseOnboardingSession | null
+  initialKyc: EtherfuseKycSnapshot | null
 }) {
+  const router = useRouter()
   const [pubkey, setPubkey] = useState(initialSession?.publicKey ?? '')
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+  const [refreshing, setRefreshing] = useState(false)
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -55,6 +76,54 @@ export default function IdentidadClient({
             Wallet: {maskPubkey(initialSession.publicKey)}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
+            Cliente Etherfuse (UUID):{' '}
+            <span className="font-mono">{initialSession.customerId.slice(0, 8)}…</span>
+          </p>
+          {initialKyc ? (
+            <p
+              className={`mt-2 text-xs font-semibold ${
+                initialKyc.status === 'approved' ||
+                initialKyc.status === 'approved_chain_deploying'
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : initialKyc.status === 'rejected'
+                    ? 'text-destructive'
+                    : 'text-foreground'
+              }`}
+            >
+              KYC: {kycLabel(initialKyc.status)}
+            </p>
+          ) : (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Estado KYC: aún no disponible o la wallet no está registrada en Etherfuse. Tras volver
+              del portal, pulsa «Actualizar estado KYC».
+            </p>
+          )}
+          {initialKyc?.status === 'rejected' && initialKyc.currentRejectionReason && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Motivo: {initialKyc.currentRejectionReason}
+            </p>
+          )}
+          <p className="mt-2 text-xs text-muted-foreground">
+            La CLABE y datos bancarios se registran dentro del portal seguro (Etherfuse), no en esta
+            pantalla.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-full"
+              disabled={refreshing}
+              onClick={() => {
+                setRefreshing(true)
+                router.refresh()
+                setTimeout(() => setRefreshing(false), 800)
+              }}
+            >
+              {refreshing ? 'Actualizando…' : 'Actualizar estado KYC'}
+            </Button>
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
             Puedes generar otro enlace con la misma cuenta sin cambiar de dispositivo.
           </p>
         </div>

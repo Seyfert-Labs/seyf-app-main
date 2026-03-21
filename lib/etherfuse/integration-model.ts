@@ -7,8 +7,10 @@ import { randomUUID } from "node:crypto";
  *   No es el ID que pasas como `customerId`.
  * - **Usuario final (cliente ramp):** Etherfuse crea el registro de cliente cuando llamas
  *   `POST /ramp/onboarding-url` con UUIDs que **generas tú**: `customerId` y `bankAccountId`,
- *   más la wallet Stellar (`publicKey` + `blockchain: stellar`). Debes persistir en tu DB:
+ *   más la wallet Stellar (`publicKey` + `blockchain: stellar`). Hoy Seyf guarda eso en cookie
+ *   httpOnly (`lib/etherfuse/onboarding-session.ts`) hasta tener Postgres; luego:
  *   `seyf_user_id` → `etherfuse_customer_id`, `etherfuse_bank_account_id`, `stellar_public_key`.
+ *   La **CLABE** se captura en el onboarding hosted de Etherfuse (paso bancario del portal).
  * - **Child org (`POST /ramp/organization`):** sub-organizaciones con flujo de aprobación KYB aparte.
  *   En el MVP retail de Seyf **no** es el camino por usuario; sirve para partners/negocios, no para cada ahorrador.
  *
