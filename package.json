@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "etherfuse:verify": "node scripts/verify-etherfuse.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
