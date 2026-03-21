@@ -2,6 +2,14 @@
 
 # dependencies
 /node_modules
+<<<<<<< HEAD
+=======
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+>>>>>>> 01661aa5831bbbabeafbb07292eef69bc4bed761
 
 # next.js
 /.next/
@@ -10,18 +18,36 @@
 # production
 /build
 
+<<<<<<< HEAD
+=======
+# misc
+.DS_Store
+*.pem
+
+>>>>>>> 01661aa5831bbbabeafbb07292eef69bc4bed761
 # debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+<<<<<<< HEAD
 .pnpm-debug.log*
 
 # env files
 .env*
+=======
+
+# local env files
+.env*.local
+.env
+>>>>>>> 01661aa5831bbbabeafbb07292eef69bc4bed761
 
 # vercel
 .vercel
 
 # typescript
 *.tsbuildinfo
+<<<<<<< HEAD
 next-env.d.ts
+=======
+next-env.d.ts
+>>>>>>> 01661aa5831bbbabeafbb07292eef69bc4bed761
