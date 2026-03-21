@@ -20,6 +20,9 @@ import { randomUUID } from "node:crypto";
  *   `onboarding-url` para crear cliente y obtener token de acuerdos.
  *
  * @see https://docs.etherfuse.com/guides/onboarding
+ *
+ * **Paso 4 (cotización / orden / webhooks):** `lib/etherfuse/ramp-api.ts`, rutas
+ * `GET/POST /api/seyf/etherfuse/...` y `POST /api/webhooks/etherfuse` (ver `.env.example`).
  */
 
 export const ETHERFUSE_BLOCKCHAINS = [
