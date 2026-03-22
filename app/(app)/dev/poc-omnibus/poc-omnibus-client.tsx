@@ -181,7 +181,7 @@ export default function PocOmnibusClient() {
         Siguiente paso: enlazar webhooks Etherfuse o el flujo de depósito real para que un{' '}
         <span className="font-mono">credit</span> coincida con SPEI confirmado en la wallet compartida, y
         mantener la UI igual para el usuario.{' '}
-        <Link href="/dev/etherfuse-ramp" className="font-semibold text-foreground underline-offset-2 hover:underline">
+        <Link href="/anadir" className="font-semibold text-foreground underline-offset-2 hover:underline">
           Panel rampa
         </Link>
       </p>
