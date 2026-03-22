@@ -101,12 +101,12 @@ export function iconForMovimientoTipo(tipo: MovimientoTipo): ReactNode {
 
 export function labelForMovimientoTipo(tipo: MovimientoTipo): string {
   const map: Record<MovimientoTipo, string> = {
-    deposito: 'Depósito',
+    deposito: 'Entrada',
     rendimiento: 'Rendimiento',
     adelanto: 'Adelanto',
-    retiro: 'Retiro',
-    pago: 'Pago QR',
-    inversion: 'Inversión',
+    retiro: 'Salida',
+    pago: 'Pago',
+    inversion: 'Ahorro',
   }
   return map[tipo]
 }

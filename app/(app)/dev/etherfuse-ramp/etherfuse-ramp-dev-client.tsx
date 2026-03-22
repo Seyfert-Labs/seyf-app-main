@@ -157,7 +157,7 @@ export default function EtherfuseRampDevClient() {
       const details = speiDetailsFromOnrampOrderApiJson(o, assetLabel, 'Etherfuse')
       if (!details) {
         throw new Error(
-          'La orden no incluye CLABE / monto SPEI (revisa la respuesta POST order onramp).',
+          'No aparecen datos de transferencia (CLABE e importe). Revisa la respuesta o inténtalo de nuevo.',
         )
       }
       setOrderJson(o)
@@ -201,7 +201,7 @@ export default function EtherfuseRampDevClient() {
     <AppPageBody className="space-y-6 pt-4">
       <AppBackLink href="/dashboard" />
 
-      <h1 className="text-xl font-bold text-foreground">Depositar</h1>
+      <h1 className="text-xl font-bold text-foreground">Añadir fondos</h1>
 
       <SpeiPaymentCard
         details={speiDetails}
@@ -220,13 +220,13 @@ export default function EtherfuseRampDevClient() {
               Procesando…
             </>
           ) : (
-            'Ya transferí por SPEI (sandbox)'
+            'Ya hice la transferencia (prueba)'
           )}
         </Button>
       ) : null}
 
       <section className="space-y-4 rounded-[1.5rem] border border-border bg-card p-4">
-        <h2 className="text-sm font-bold text-foreground">MXN → CETES</h2>
+        <h2 className="text-sm font-bold text-foreground">Monto en pesos</h2>
         <Input
           id="manual-amount"
           inputMode="decimal"
@@ -240,9 +240,9 @@ export default function EtherfuseRampDevClient() {
           id="manual-asset"
           value={targetOverride}
           onChange={(e) => setTargetOverride(e.target.value)}
-          placeholder="CODE:ISSUER (opcional)"
+          placeholder="Opcional · solo uso avanzado"
           className="h-12 rounded-xl border-border bg-background px-4 font-mono text-xs"
-          aria-label="Activo opcional"
+          aria-label="Opcional avanzado"
         />
         <Button
           type="button"
@@ -269,7 +269,7 @@ export default function EtherfuseRampDevClient() {
 
       {onrampTxSignature && stellarTxExplorerUrl ? (
         <div className="rounded-[1.5rem] border border-border bg-card p-4">
-          <p className="text-sm font-bold text-foreground">Transacción</p>
+          <p className="text-sm font-bold text-foreground">Comprobante</p>
           <p className="mt-2 break-all font-mono text-xs text-muted-foreground">{onrampTxSignature}</p>
           <a
             href={stellarTxExplorerUrl}
@@ -277,7 +277,7 @@ export default function EtherfuseRampDevClient() {
             rel="noopener noreferrer"
             className="mt-3 inline-block text-sm font-semibold text-foreground underline-offset-2 hover:underline"
           >
-            Ver en explorador
+            Ver comprobante
           </a>
         </div>
       ) : null}

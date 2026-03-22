@@ -14,8 +14,7 @@ type RampContextPayload = {
 }
 
 /**
- * Muestra qué wallet Stellar usa la API Seyf para rampa y si hay `cryptoWalletId` en Etherfuse.
- * El portal devnet pide «conectar wallet» para firmar: debe ser la misma clave que aquí.
+ * Muestra la cuenta que usa la API para depósitos/retiros y el id resuelto en Etherfuse.
  */
 export function EtherfuseRampWalletBanner({
   variant = 'amber',
@@ -58,8 +57,8 @@ export function EtherfuseRampWalletBanner({
   if (loading) {
     return (
       <div className={`mb-6 rounded-[1.25rem] border border-dashed ${border} p-4`}>
-        <p className={`text-xs font-bold ${title}`}>Wallet rampa</p>
-        <p className="mt-2 text-xs text-muted-foreground">Cargando contexto…</p>
+        <p className={`text-xs font-bold ${title}`}>Cuenta de operaciones</p>
+        <p className="mt-2 text-xs text-muted-foreground">Cargando…</p>
       </div>
     )
   }
@@ -67,7 +66,7 @@ export function EtherfuseRampWalletBanner({
   if (err) {
     return (
       <div className={`mb-6 rounded-[1.25rem] border border-dashed ${border} p-4`}>
-        <p className={`text-xs font-bold ${title}`}>Wallet rampa</p>
+        <p className={`text-xs font-bold ${title}`}>Cuenta de operaciones</p>
         <p className="mt-2 text-xs text-destructive">{err}</p>
         <p className="mt-2 text-xs text-muted-foreground">
           Configura la sesión en{' '}
@@ -84,24 +83,22 @@ export function EtherfuseRampWalletBanner({
 
   return (
     <div className={`mb-6 rounded-[1.25rem] border border-dashed ${border} p-4 space-y-2`}>
-      <p className={`text-xs font-bold ${title}`}>Wallet vinculada a esta sesión (API Seyf)</p>
+      <p className={`text-xs font-bold ${title}`}>Cuenta vinculada a esta sesión</p>
       <p className="text-xs leading-relaxed text-muted-foreground">
-        Esta app no usa el conector de wallet del navegador (Freighter, etc.). La rampa queda ligada a la
-        clave pública Stellar que guardaste en{' '}
+        Los depósitos y retiros usan la clave que guardaste en{' '}
         <Link href="/identidad" className="font-semibold text-foreground underline-offset-2 hover:underline">
           /identidad
         </Link>{' '}
-        (cookie) o, sin cookie, a la wallet MVP del <span className="font-mono">.env</span>. En{' '}
+        o, si no hay cookie, la del entorno de prueba (<span className="font-mono">.env</span>). En{' '}
         <a
           href="https://devnet.etherfuse.com/ramp"
           target="_blank"
           rel="noopener noreferrer"
           className="font-semibold text-foreground underline-offset-2 hover:underline"
         >
-          devnet Etherfuse
+          el portal de Etherfuse (prueba)
         </a>{' '}
-        debes conectar la misma cuenta para firmar
-        burns u operaciones; si conectas otra wallet, la orden no coincidirá.
+        conecta la misma cuenta al autorizar; si usas otra, la operación no cuadrará.
       </p>
       <div className="rounded-[0.75rem] border border-border/60 bg-background/50 px-3 py-2 text-[11px] leading-relaxed">
         <p>
@@ -111,16 +108,16 @@ export function EtherfuseRampWalletBanner({
           </span>
         </p>
         <p className="mt-1 break-all">
-          <span className="text-muted-foreground">publicKey:</span>{' '}
+          <span className="text-muted-foreground">Clave pública:</span>{' '}
           <span className="font-mono text-foreground">{data.publicKey}</span>
         </p>
         <p className="mt-1">
-          <span className="text-muted-foreground">cryptoWalletId (POST /ramp/order):</span>{' '}
+          <span className="text-muted-foreground">ID en Etherfuse:</span>{' '}
           {data.cryptoWalletResolved && data.cryptoWalletId ? (
             <span className="font-mono text-emerald-600">{data.cryptoWalletId}</span>
           ) : (
             <span className="text-amber-600">
-              no resuelto — la API usará solo publicKey; puede fallar con «Proxy account».{' '}
+              pendiente — puede fallar el paso de autorización.{' '}
               {data.cryptoWalletError ? (
                 <span className="block mt-1 text-[10px] opacity-90">{data.cryptoWalletError}</span>
               ) : null}

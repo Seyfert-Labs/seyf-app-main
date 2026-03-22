@@ -6,6 +6,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Check, Copy, LogOut, UserRound } from 'lucide-react'
 import { useAccesly } from 'accesly'
 import { Button } from '@/components/ui/button'
+import {
+  ACCESLY_BALANCE_EXTRA_DELAYS_MS,
+  ACCESLY_BALANCE_POLL_MS,
+} from '@/lib/seyf/balance-poll-intervals'
 
 function maskAddress(value?: string | null) {
   if (!value) return '—'
@@ -32,7 +36,7 @@ type AppUserAccountPanelProps = {
 
 export default function AppUserAccountPanel({ embedded = false }: AppUserAccountPanelProps) {
   const router = useRouter()
-  const { wallet, balance, loading, disconnect } = useAccesly()
+  const { wallet, balance, loading, disconnect, refreshBalance } = useAccesly()
   const [addressCopied, setAddressCopied] = useState(false)
   const copyResetRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -41,6 +45,39 @@ export default function AppUserAccountPanel({ embedded = false }: AppUserAccount
       if (copyResetRef.current) clearTimeout(copyResetRef.current)
     }
   }, [])
+
+  useEffect(() => {
+    if (!wallet || loading) return
+    let cancelled = false
+    const tick = () => {
+      if (cancelled) return
+      if (document.visibilityState !== 'visible') return
+      void refreshBalance().catch(() => {})
+    }
+    tick()
+    const extraTimers = ACCESLY_BALANCE_EXTRA_DELAYS_MS.map((ms) =>
+      setTimeout(tick, ms),
+    )
+    const id = setInterval(tick, ACCESLY_BALANCE_POLL_MS)
+    const onVis = () => {
+      if (document.visibilityState === 'visible') tick()
+    }
+    const onFocus = () => tick()
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) tick()
+    }
+    document.addEventListener('visibilitychange', onVis)
+    window.addEventListener('focus', onFocus)
+    window.addEventListener('pageshow', onPageShow)
+    return () => {
+      cancelled = true
+      for (const t of extraTimers) clearTimeout(t)
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', onVis)
+      window.removeEventListener('focus', onFocus)
+      window.removeEventListener('pageshow', onPageShow)
+    }
+  }, [wallet, loading, refreshBalance])
 
   const copyStellarAddress = useCallback(async (address: string) => {
     try {

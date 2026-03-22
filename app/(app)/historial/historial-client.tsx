@@ -1,10 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { AppPageBody } from '@/components/app/app-page-body'
 import { MovementDetailSheet } from '@/components/app/movement-detail-sheet'
 import { iconForMovimientoTipo, labelForMovimientoTipo } from '@/components/app/movement-tipo-icons'
 import { cn } from '@/lib/utils'
+import {
+  HISTORIAL_POLL_EXTRA_DELAYS_MS,
+  HISTORIAL_POLL_MS,
+} from '@/lib/seyf/balance-poll-intervals'
+import { POLL_FETCH_INIT, pollBustUrl } from '@/lib/seyf/poll-fetch'
 import type { MovimientoTipo, UserMovement } from '@/lib/seyf/user-movements-types'
 import { formatMovementListSubtitle } from '@/lib/seyf/user-movements-types'
 
@@ -32,17 +37,71 @@ function formatMXN(amount: number) {
 export default function HistorialClient({ movements }: { movements: UserMovement[] }) {
   const [filtro, setFiltro] = useState<Filtro>('Todos')
   const [selected, setSelected] = useState<UserMovement | null>(null)
+  const [liveMovements, setLiveMovements] = useState(movements)
+
+  useEffect(() => {
+    setLiveMovements(movements)
+  }, [movements])
+
+  const refreshMovements = useCallback(async () => {
+    try {
+      const r = await fetch(pollBustUrl('/api/seyf/user-movements'), POLL_FETCH_INIT)
+      if (!r.ok) return
+      const j = (await r.json()) as { movements?: UserMovement[] }
+      if (Array.isArray(j.movements)) setLiveMovements(j.movements)
+    } catch {
+      /* mantener lista actual */
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    const tick = () => {
+      if (cancelled) return
+      if (document.visibilityState !== 'visible') return
+      void refreshMovements()
+    }
+    tick()
+    const extraTimers = HISTORIAL_POLL_EXTRA_DELAYS_MS.map((ms) =>
+      setTimeout(tick, ms),
+    )
+    const id = setInterval(tick, HISTORIAL_POLL_MS)
+    const onVis = () => {
+      if (document.visibilityState === 'visible') tick()
+    }
+    const onFocus = () => tick()
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) tick()
+    }
+    document.addEventListener('visibilitychange', onVis)
+    window.addEventListener('focus', onFocus)
+    window.addEventListener('pageshow', onPageShow)
+    return () => {
+      cancelled = true
+      for (const t of extraTimers) clearTimeout(t)
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', onVis)
+      window.removeEventListener('focus', onFocus)
+      window.removeEventListener('pageshow', onPageShow)
+    }
+  }, [refreshMovements])
+
+  useEffect(() => {
+    if (!selected) return
+    const next = liveMovements.find((m) => m.id === selected.id)
+    if (next) setSelected(next)
+  }, [liveMovements, selected])
 
   const filtered = filtroMap[filtro]
-    ? movements.filter((m) => filtroMap[filtro]!.includes(m.tipo))
-    : movements
+    ? liveMovements.filter((m) => filtroMap[filtro]!.includes(m.tipo))
+    : liveMovements
 
   return (
     <AppPageBody>
       <div className="mb-8">
         <h1 className="text-4xl font-black tracking-tight text-foreground leading-none">Historial</h1>
         <p className="mt-4 text-base text-muted-foreground font-normal">
-          Movimientos de tu cuenta (ledger MVP y órdenes Etherfuse).
+          Depósitos, retiros y todo lo demás en un solo lugar.
         </p>
       </div>
 
@@ -66,9 +125,9 @@ export default function HistorialClient({ movements }: { movements: UserMovement
 
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-[1.5rem] border border-border bg-card py-20 text-center">
-          <p className="mb-2 text-lg font-black text-foreground">Sin movimientos</p>
+          <p className="mb-2 text-lg font-black text-foreground">Aún no hay movimientos</p>
           <p className="text-sm text-muted-foreground">
-            Completa un onramp o una inversión MVP para ver entradas aquí.
+            Cuando deposites o retires, lo verás aquí.
           </p>
         </div>
       ) : (

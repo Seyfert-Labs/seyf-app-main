@@ -29,7 +29,7 @@ export function DetailRow({
   )
 }
 
-/** Resumen GET /ramp/order/{id} (OpenAPI Order) + enlace Stellar testnet si hay hash. */
+/** Resumen de orden (API) + enlace a comprobante público si hay firma. */
 export function OrderTransactionDetailCard({ payloadJson }: { payloadJson: string }) {
   let orderDisplay: RampOrderTransactionDetails | null = null
   let orderFetchError: string | null = null
@@ -84,68 +84,71 @@ export function OrderTransactionDetailCard({ payloadJson }: { payloadJson: strin
   return (
     <div className="rounded-[1rem] border border-border bg-card/80 p-4 text-sm">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-xs font-bold text-foreground">Detalle de orden / transacción</p>
+        <p className="text-xs font-bold text-foreground">Resumen de la operación</p>
         <p className="text-[10px] text-muted-foreground">
-          Fuente:{' '}
           <a
             href="https://docs.etherfuse.com/api-reference/orders/get-order-details"
             target="_blank"
             rel="noopener noreferrer"
             className="underline underline-offset-2 hover:text-foreground"
           >
-            GET /ramp/order
+            Documentación
           </a>
         </p>
       </div>
       {pollAttempts != null ? (
         <p className="mt-1 text-[10px] text-muted-foreground">
-          Lecturas de orden: {pollAttempts}
+          Consultas realizadas: {pollAttempts}
         </p>
       ) : null}
       {hasSandboxFiat && !d.orderId ? (
         <p className="mt-2 text-xs text-amber-600">
-          SPEI simulado en sandbox; no se obtuvo cuerpo de orden por GET /ramp/order (revisa red, API key o
-          reintenta el paso 4).
+          Simulación de pago lista; no pudimos cargar el detalle de la orden. Revisa conexión o vuelve a
+          intentar.
         </p>
       ) : null}
       {hasOfframpTrack && !d.orderId ? (
         <p className="mt-2 text-xs text-amber-600">
-          No se obtuvo detalle de orden por GET /ramp/order; revisa la red o el orderId.
+          No pudimos cargar el detalle. Revisa la conexión o el folio de la operación.
         </p>
       ) : null}
       {d.statusPage ? (
         <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-          Vista Etherfuse:{' '}
+          Seguimiento:{' '}
           <a
             href={d.statusPage}
             target="_blank"
             rel="noopener noreferrer"
             className="font-medium text-emerald-600 underline underline-offset-2 hover:text-emerald-500"
           >
-            Abrir en devnet
+            Abrir en Etherfuse
           </a>
         </p>
       ) : null}
 
       <div className="mt-3 space-y-0">
-        <DetailRow label="orderId" value={d.orderId} />
+        <DetailRow label="Folio" value={d.orderId} />
         <DetailRow label="Estado" value={d.status} />
         <DetailRow label="Tipo" value={d.orderType} />
-        <DetailRow label="Monto MXN" value={d.amountInFiat} />
-        <DetailRow label="Tokens" value={d.amountInTokens} />
-        <DetailRow label="Tipo de cambio (con fee)" value={d.exchangeRate} />
-        <DetailRow label="Mid-market (Etherfuse)" value={d.etherfuseMidMarketRate} />
+        <DetailRow label="Pesos (MXN)" value={d.amountInFiat} />
+        <DetailRow label="Unidades" value={d.amountInTokens} />
+        <DetailRow label="Cambio (incluye comisión)" value={d.exchangeRate} />
+        <DetailRow label="Referencia de mercado" value={d.etherfuseMidMarketRate} />
         <DetailRow
-          label="Fee"
-          value={d.feeBps != null ? `${d.feeBps} bps` : null}
+          label="Comisión"
+          value={
+            d.feeBps != null
+              ? `${(d.feeBps / 100).toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%`
+              : null
+          }
         />
-        <DetailRow label="Fee (MXN)" value={d.feeAmountInFiat} />
-        <DetailRow label="Activo origen" value={d.sourceAsset} />
-        <DetailRow label="Activo destino" value={d.targetAsset} />
-        <DetailRow label="CLABE depósito" value={d.depositClabe} />
-        <DetailRow label="walletId" value={d.walletId} />
-        <DetailRow label="bankAccountId" value={d.bankAccountId} />
-        <DetailRow label="customerId" value={d.customerId} />
+        <DetailRow label="Comisión en pesos" value={d.feeAmountInFiat} />
+        <DetailRow label="Origen" value={d.sourceAsset} />
+        <DetailRow label="Destino" value={d.targetAsset} />
+        <DetailRow label="CLABE (depósito)" value={d.depositClabe} />
+        <DetailRow label="Cuenta interna" value={d.walletId} />
+        <DetailRow label="Cuenta bancaria" value={d.bankAccountId} />
+        <DetailRow label="Cliente" value={d.customerId} />
         <DetailRow label="Creada" value={d.createdAt} />
         <DetailRow label="Actualizada" value={d.updatedAt} />
         <DetailRow label="Completada" value={d.completedAt} />
@@ -153,7 +156,7 @@ export function OrderTransactionDetailCard({ payloadJson }: { payloadJson: strin
 
       {tx ? (
         <p className="mt-3 break-all text-xs leading-relaxed">
-          <span className="text-muted-foreground">confirmedTxSignature: </span>
+          <span className="text-muted-foreground">Referencia: </span>
           <span className="font-mono text-foreground">{tx}</span>
           {stellarTxUrl ? (
             <>
@@ -164,27 +167,26 @@ export function OrderTransactionDetailCard({ payloadJson }: { payloadJson: strin
                 rel="noopener noreferrer"
                 className="text-emerald-600 underline underline-offset-2 hover:text-emerald-500"
               >
-                Stellar Expert (testnet)
+                Ver comprobante público
               </a>
             </>
           ) : null}
         </p>
       ) : (
         <p className="mt-3 text-xs text-muted-foreground">
-          El hash on-chain aparece cuando el estado avanza (p. ej. tras firmar el burn en offramp o SPEI en
-          onramp).
+          El comprobante público aparece cuando la operación avanza (pago o autorización completados).
         </p>
       )}
       {orderFetchError ? (
         <p className="mt-2 text-xs text-amber-600">
-          No se pudo refrescar GET /ramp/order (reintentos servidor): {orderFetchError}
+          No se pudo actualizar el detalle: {orderFetchError}
         </p>
       ) : null}
     </div>
   )
 }
 
-/** Tras POST order onramp: CLABE y monto esperado. */
+/** Tras crear orden onramp: CLABE e importe esperado. */
 export function OrderCreatedDepositCard({ orderApiJson }: { orderApiJson: string }) {
   let dep: ReturnType<typeof pickOnrampDepositSummary> | null = null
   try {
@@ -197,11 +199,11 @@ export function OrderCreatedDepositCard({ orderApiJson }: { orderApiJson: string
   if (!dep?.orderId && !dep?.depositClabe) return null
   return (
     <div className="rounded-[1rem] border border-border bg-card/80 p-4 text-sm">
-      <p className="text-xs font-bold text-foreground">Orden creada (SPEI)</p>
+      <p className="text-xs font-bold text-foreground">Listo para transferir</p>
       <div className="mt-3 space-y-0">
-        <DetailRow label="orderId" value={dep.orderId} />
+        <DetailRow label="Folio" value={dep.orderId} />
         <DetailRow label="CLABE" value={dep.depositClabe} />
-        <DetailRow label="Monto MXN a depositar" value={dep.depositAmount} />
+        <DetailRow label="Importe exacto (MXN)" value={dep.depositAmount} />
       </div>
     </div>
   )

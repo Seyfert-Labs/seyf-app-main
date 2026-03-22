@@ -189,7 +189,7 @@ export default function EtherfuseOfframpDevClient() {
     <AppPageBody className="space-y-6 pt-4">
       <AppBackLink href="/dashboard" />
 
-      <h1 className="text-xl font-bold text-foreground">Retirar</h1>
+      <h1 className="text-xl font-bold text-foreground">Retirar fondos</h1>
 
       <OfframpActionCard summary={offrampSummary} />
 
@@ -204,30 +204,30 @@ export default function EtherfuseOfframpDevClient() {
           {trackBusy ? (
             <>
               <Spinner className="size-4" />
-              Consultando…
+              Actualizando…
             </>
           ) : (
-            'Consultar estado'
+            'Actualizar estado'
           )}
         </Button>
       ) : null}
 
       <section className="space-y-4 rounded-[1.5rem] border border-border bg-card p-4">
-        <h2 className="text-sm font-bold text-foreground">CETES → MXN</h2>
+        <h2 className="text-sm font-bold text-foreground">Cuánto retiras</h2>
         <Input
           inputMode="decimal"
           value={sourceAmountTokens}
           onChange={(e) => setSourceAmountTokens(e.target.value)}
-          placeholder="Cantidad a vender (tokens)"
+          placeholder="Monto o unidades"
           className="h-12 rounded-xl border-border bg-background px-4 tabular-nums"
-          aria-label="Cantidad en activo fuente"
+          aria-label="Monto a retirar"
         />
         <Input
           value={sourceAssetOverride}
           onChange={(e) => setSourceAssetOverride(e.target.value)}
-          placeholder="CODE:ISSUER (opcional)"
+          placeholder="Opcional · solo uso avanzado"
           className="h-12 rounded-xl border-border bg-background px-4 font-mono text-xs"
-          aria-label="Activo fuente opcional"
+          aria-label="Opcional avanzado"
         />
         <div className="flex items-start gap-3 rounded-xl border border-border/60 bg-background/40 px-3 py-2">
           <Checkbox
@@ -240,7 +240,7 @@ export default function EtherfuseOfframpDevClient() {
             htmlFor="use-anchor"
             className="cursor-pointer text-xs leading-relaxed font-normal text-muted-foreground"
           >
-            Stellar: modo anchor (pago + memo en lugar de burn prearmado).{' '}
+            Modo alternativo de retiro (solo si te lo indican).{' '}
             <a
               href="https://docs.etherfuse.com/guides/testing-offramps#anchor-mode-stellar-only"
               target="_blank"
@@ -276,7 +276,7 @@ export default function EtherfuseOfframpDevClient() {
 
       {offrampTxSignature && stellarTxExplorerUrl ? (
         <div className="rounded-[1.5rem] border border-border bg-card p-4">
-          <p className="text-sm font-bold text-foreground">Transacción</p>
+          <p className="text-sm font-bold text-foreground">Comprobante</p>
           <p className="mt-2 break-all font-mono text-xs text-muted-foreground">{offrampTxSignature}</p>
           <a
             href={stellarTxExplorerUrl}
@@ -284,7 +284,7 @@ export default function EtherfuseOfframpDevClient() {
             rel="noopener noreferrer"
             className="mt-3 inline-block text-sm font-semibold text-foreground underline-offset-2 hover:underline"
           >
-            Ver en explorador
+            Ver comprobante
           </a>
         </div>
       ) : null}

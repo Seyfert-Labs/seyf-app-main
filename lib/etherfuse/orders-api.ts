@@ -67,6 +67,72 @@ export async function fetchCustomerOrdersFirstPage(
   return Array.isArray(json?.items) ? json.items : [];
 }
 
+type CustomerOrdersPagedJson = {
+  items?: OrderRow[];
+  totalPages?: number;
+  pageNumber?: number;
+  pageSize?: number;
+};
+
+const CUSTOMER_ORDERS_MAX_PAGES = 50;
+const CUSTOMER_ORDERS_PAGE_SIZE = 100;
+
+/**
+ * Todas las páginas de órdenes del cliente (POST con paginación).
+ * Si POST falla, hace fallback a GET (solo primera página).
+ * @see https://docs.etherfuse.com/api-reference/customers/get-customer-orders-with-pagination
+ */
+export async function fetchCustomerOrdersAllPages(
+  customerId: string,
+): Promise<OrderRow[]> {
+  const path = `/ramp/customer/${encodeURIComponent(customerId)}/orders`;
+  const collected: OrderRow[] = [];
+  const seenIds = new Set<string>();
+
+  for (
+    let pageNumber = 0;
+    pageNumber < CUSTOMER_ORDERS_MAX_PAGES;
+    pageNumber++
+  ) {
+    const res = await etherfuseFetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        pageSize: CUSTOMER_ORDERS_PAGE_SIZE,
+        pageNumber,
+      }),
+    });
+    const { json, text } = await etherfuseReadBody<CustomerOrdersPagedJson>(res);
+    if (!res.ok) {
+      if (pageNumber === 0) {
+        return fetchCustomerOrdersFirstPage(customerId);
+      }
+      throw new Error(
+        `Etherfuse POST ${path} (${res.status}): ${text.slice(0, 400)}`,
+      );
+    }
+    const items = Array.isArray(json?.items) ? json.items : [];
+    for (const row of items) {
+      if (!row || typeof row !== "object") continue;
+      const oid = orderIdFromRow(row as OrderRow);
+      if (oid) {
+        if (seenIds.has(oid)) continue;
+        seenIds.add(oid);
+      }
+      collected.push(row as OrderRow);
+    }
+
+    const tp = json?.totalPages;
+    const totalKnown =
+      typeof tp === "number" && Number.isFinite(tp) && tp >= 1 ? tp : null;
+    if (totalKnown != null && pageNumber + 1 >= totalKnown) break;
+    if (items.length === 0) break;
+    if (totalKnown == null && items.length < CUSTOMER_ORDERS_PAGE_SIZE) break;
+  }
+
+  return collected;
+}
+
 /**
  * Busca onramp pendiente (status created) con mismo banco y mismo monto fiat.
  */

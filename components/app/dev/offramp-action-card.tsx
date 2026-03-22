@@ -71,20 +71,18 @@ export function OfframpActionCard({ summary }: { summary: OfframpOrderSummary | 
   return (
     <section
       className="overflow-hidden rounded-[1.5rem] border border-border bg-card"
-      aria-label="Firma offramp"
+      aria-label="Autorizar retiro"
     >
       <div className="border-b border-border bg-secondary/40 px-4 py-3">
-        <h2 className="text-sm font-bold text-foreground">Firma en cadena</h2>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          Venta crypto → MXN: completa el burn o el pago anchor en testnet
-        </p>
+        <h2 className="text-sm font-bold text-foreground">Siguiente paso</h2>
+        <p className="mt-0.5 text-xs text-muted-foreground">Autoriza tu retiro en pesos</p>
       </div>
 
       <div className="px-4 py-3">
         {!hasOrder ? (
           <p className="text-sm leading-relaxed text-muted-foreground">
-            Indica cuánto vas a vender y pulsa <span className="font-medium text-foreground">Continuar</span>.
-            Aquí verás el enlace para firmar en Etherfuse y, si aplica, el XDR del burn o los datos anchor.
+            Indica el monto y pulsa <span className="font-medium text-foreground">Continuar</span>. Te daremos un
+            enlace seguro para autorizar el retiro.
           </p>
         ) : (
           <>
@@ -103,14 +101,14 @@ export function OfframpActionCard({ summary }: { summary: OfframpOrderSummary | 
                     rel="noopener noreferrer"
                     className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-violet-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-violet-700"
                   >
-                    Abrir Etherfuse para firmar
+                    Abrir para autorizar
                     <ExternalLink className="size-4 opacity-90" aria-hidden />
                   </a>
                 </div>
               ) : null}
               {burnPreview ? (
                 <FieldRow
-                  label="burnTransaction (vista)"
+                  label="Código de operación"
                   value={burnPreview}
                   mono
                   copyValue={summary!.burnTransaction ?? undefined}
@@ -118,7 +116,7 @@ export function OfframpActionCard({ summary }: { summary: OfframpOrderSummary | 
               ) : null}
               {summary!.withdrawAnchorAccount ? (
                 <FieldRow
-                  label="Cuenta anchor"
+                  label="Cuenta de destino"
                   value={summary!.withdrawAnchorAccount}
                   mono
                   copyValue={summary!.withdrawAnchorAccount}
@@ -137,15 +135,14 @@ export function OfframpActionCard({ summary }: { summary: OfframpOrderSummary | 
               ) : null}
             </div>
             <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-              Cuando hayas firmado, usa <span className="font-medium text-foreground">Consultar estado</span>{' '}
-              más abajo.{' '}
+              Al terminar, pulsa <span className="font-medium text-foreground">Consultar estado</span> abajo.{' '}
               <a
                 href="https://docs.etherfuse.com/guides/testing-offramps"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-violet-600 underline underline-offset-2 hover:text-violet-500"
               >
-                Guía offramp
+                Ayuda
               </a>
             </p>
           </>

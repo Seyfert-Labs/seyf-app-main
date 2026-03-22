@@ -75,20 +75,18 @@ export function SpeiPaymentCard({
   return (
     <section
       className="overflow-hidden rounded-[1.5rem] border border-border bg-card"
-      aria-label="Datos para pago SPEI"
+      aria-label="Datos para transferencia SPEI"
     >
       <div className="border-b border-border bg-secondary/40 px-4 py-3">
-        <h2 className="text-sm font-bold text-foreground">Pago con SPEI</h2>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          Transfiere desde tu banco con estos datos
-        </p>
+        <h2 className="text-sm font-bold text-foreground">Transferencia SPEI</h2>
+        <p className="mt-0.5 text-xs text-muted-foreground">Desde la app de tu banco</p>
       </div>
 
       <div className="px-4 py-3">
         {details ? (
           <>
             <p className="mb-2 text-xs text-muted-foreground">
-              Compra · <span className="font-semibold text-foreground">{details.assetCode}</span>
+              Producto · <span className="font-semibold text-foreground">{details.assetCode}</span>
             </p>
             <div className="rounded-xl border border-dashed border-border bg-background/60 px-3">
               <FieldRow label="CLABE" value={details.clabe} mono copyValue={details.clabe} />
@@ -103,14 +101,13 @@ export function SpeiPaymentCard({
               ) : null}
             </div>
             <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-              Verifica que el monto coincida exactamente. Luego confirma abajo cuando hayas enviado la
-              transferencia (en sandbox se simula la recepción).
+              El monto debe coincidir al centavo. Luego confirma abajo cuando hayas pagado.
             </p>
           </>
         ) : (
           <p className="text-sm leading-relaxed text-muted-foreground">
-            Indica cuánto vas a depositar y pulsa <span className="font-medium text-foreground">Continuar</span>.
-            Aquí aparecerán la CLABE de Etherfuse y el monto exacto para tu SPEI.
+            Escribe el monto y pulsa <span className="font-medium text-foreground">Continuar</span>. Aquí verás la
+            CLABE y el importe exacto.
           </p>
         )}
       </div>

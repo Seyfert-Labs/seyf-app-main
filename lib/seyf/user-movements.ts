@@ -1,5 +1,5 @@
 import {
-  fetchCustomerOrdersFirstPage,
+  fetchCustomerOrdersAllPages,
   pickRampOrderTransactionDetails,
 } from "@/lib/etherfuse/orders-api";
 import type { InvestmentRun } from "@/lib/seyf/investment-mvp";
@@ -40,42 +40,107 @@ function mapEstado(status: string | null): MovimientoEstado {
   return "pendiente";
 }
 
-function parseAmountFiat(s: string | null): number {
+function parseDecimalAmount(v: string | number | null | undefined): number {
+  if (v == null) return 0;
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  const s = String(v).trim();
   if (!s) return 0;
   const n = Number.parseFloat(s.replace(",", "."));
   return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * En listados, `orderType` a veces viene vacío; inferimos offramp/onramp por campos típicos.
+ */
+function inferRampOrderTypeFromRow(row: Record<string, unknown>): "onramp" | "offramp" | "" {
+  const burn =
+    typeof row.burnTransaction === "string" && row.burnTransaction.length > 0;
+  if (burn) return "offramp";
+  if (row.isAnchorOrder === true) return "offramp";
+  const w =
+    typeof row.withdrawAnchorAccount === "string"
+      ? row.withdrawAnchorAccount
+      : typeof row.withdraw_anchor_account === "string"
+        ? row.withdraw_anchor_account
+        : "";
+  if (w.length > 5) return "offramp";
+
+  const tgt = String(row.targetAsset ?? row.target_asset ?? "").toUpperCase();
+  const src = String(row.sourceAsset ?? row.source_asset ?? "").toUpperCase();
+  if (
+    tgt &&
+    tgt.includes("MXN") &&
+    src &&
+    !src.includes("MXN") &&
+    src.trim().length > 0
+  ) {
+    return "offramp";
+  }
+  if (
+    src &&
+    src.includes("MXN") &&
+    tgt &&
+    !tgt.includes("MXN") &&
+    tgt.trim().length > 0
+  ) {
+    return "onramp";
+  }
+  const clabe = row.depositClabe ?? row.deposit_clabe;
+  if (typeof clabe === "string" && clabe.replace(/\D/g, "").length >= 10) {
+    return "onramp";
+  }
+  return "";
+}
+
+function resolvedOrderType(
+  row: Record<string, unknown>,
+  d: ReturnType<typeof pickRampOrderTransactionDetails>,
+): string {
+  const fromApi = (d.orderType ?? "").toLowerCase();
+  if (fromApi === "onramp" || fromApi === "offramp") return fromApi;
+  const inferred = inferRampOrderTypeFromRow(row);
+  return inferred;
+}
+
+function detalleEtherfuseAmigable(
+  ot: string,
+  d: ReturnType<typeof pickRampOrderTransactionDetails>,
+): string {
+  if (ot === "onramp") {
+    return d.depositClabe
+      ? "Sigue las instrucciones de transferencia que te dimos (CLABE y monto exacto)."
+      : "Estamos generando los datos de tu depósito.";
+  }
+  if (ot === "offramp") {
+    return "Retiro a tu cuenta en pesos.";
+  }
+  return "Movimiento registrado en tu cuenta.";
 }
 
 function etherfuseRowToMovement(row: Record<string, unknown>): UserMovement | null {
   const d = pickRampOrderTransactionDetails(row);
   const oid = d.orderId;
   if (!oid) return null;
-  const ot = (d.orderType ?? "").toLowerCase();
+  const ot = resolvedOrderType(row, d);
   let tipo: MovimientoTipo;
   let titulo: string;
   if (ot === "onramp") {
     tipo = "deposito";
-    titulo = "Depósito onramp (MXN → crypto)";
+    titulo = "Depósito desde tu banco";
   } else if (ot === "offramp") {
     tipo = "retiro";
-    titulo = "Retiro offramp (crypto → MXN)";
+    titulo = "Retiro a tu cuenta";
   } else {
     tipo = "deposito";
-    titulo = `Orden ${d.orderType ?? "Etherfuse"}`;
+    titulo = "Movimiento";
   }
-  const monto = parseAmountFiat(d.amountInFiat);
+  let monto = parseDecimalAmount(d.amountInFiat);
+  if (ot === "offramp" && monto !== 0) {
+    monto = -Math.abs(monto);
+  }
   const createdAt =
     d.createdAt ?? d.completedAt ?? d.updatedAt ?? new Date().toISOString();
   const estado = mapEstado(d.status);
-  const parts = [
-    `Orden ${oid}`,
-    d.status ? `Estado: ${d.status}` : null,
-    d.amountInTokens ? `Tokens: ${d.amountInTokens}` : null,
-    d.depositClabe ? `CLABE: ${d.depositClabe}` : null,
-    d.sourceAsset || d.targetAsset
-      ? `Activos: ${d.sourceAsset ?? "—"} → ${d.targetAsset ?? "—"}`
-      : null,
-  ].filter(Boolean);
   return {
     id: `ef-${oid}`,
     source: "etherfuse",
@@ -84,7 +149,7 @@ function etherfuseRowToMovement(row: Record<string, unknown>): UserMovement | nu
     monto,
     createdAt,
     estado,
-    detalle: parts.join(" · "),
+    detalle: detalleEtherfuseAmigable(ot, d),
     orderId: oid,
     stellarTxSignature: d.confirmedTxSignature,
   };
@@ -101,13 +166,13 @@ function ledgerRunToMovement(r: InvestmentRun): UserMovement {
     id: `ledger-${r.id}`,
     source: "ledger",
     tipo: "inversion",
-    titulo: "Inversión Stablebond (MVP)",
+    titulo: "Ahorro invertido (prueba)",
     monto: r.status === "completed" ? r.amountMxn : 0,
     createdAt: r.createdAt,
     estado,
     detalle:
       r.errorMessage ??
-      `Simulación ledger · tasa ref. ${r.rateSnapshotAnnualPercent}% anual`,
+      `Solo en entorno de prueba · tasa de referencia ${r.rateSnapshotAnnualPercent}% anual`,
     orderId: null,
     stellarTxSignature: r.stellarTxHash?.trim() || null,
   };
@@ -128,7 +193,7 @@ export async function fetchUserMovements(
 
   if (ctx && etherfuseRampAllowed()) {
     try {
-      const rows = await fetchCustomerOrdersFirstPage(ctx.customerId);
+      const rows = await fetchCustomerOrdersAllPages(ctx.customerId);
       for (const row of rows) {
         if (row && typeof row === "object") {
           const m = etherfuseRowToMovement(row as Record<string, unknown>);

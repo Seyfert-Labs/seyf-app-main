@@ -2,19 +2,14 @@ import type { InvestmentRun } from "@/lib/seyf/investment-mvp";
 import { listRuns, MOCK_ANNUAL_RATE_PERCENT } from "@/lib/seyf/investment-mvp";
 import { fetchDashboardCetesSaldo, type DashboardCetesSaldo } from "@/lib/seyf/dashboard-cetes-saldo";
 import { getEtherfuseRampContext } from "@/lib/seyf/etherfuse-ramp-context";
-import type { UserMovement } from "@/lib/seyf/user-movements-types";
 import { fetchUserMovements } from "@/lib/seyf/user-movements";
+import {
+  DASHBOARD_MOVEMENTS_PREVIEW_LIMIT,
+  type DashboardViewModel,
+} from "@/lib/seyf/dashboard-view-model-types";
 
-export type DashboardViewModel = {
-  principalMxn: number;
-  rendimientoMxn: number;
-  adelantableMxn: number;
-  puntos: number;
-  tasaAnual: number;
-  saldoGastoMxn: number;
-  saldoNote: string | null;
-  movementsRecent: UserMovement[];
-};
+export type { DashboardViewModel } from "@/lib/seyf/dashboard-view-model-types";
+export { DASHBOARD_MOVEMENTS_PREVIEW_LIMIT } from "@/lib/seyf/dashboard-view-model-types";
 
 function investAllowed(): boolean {
   if (process.env.NODE_ENV !== "production") return true;
@@ -42,21 +37,13 @@ function daysSince(iso: string): number {
 
 function cetesFootnote(s: DashboardCetesSaldo): string | null {
   if (s.kind === "ok") {
-    const c = new Intl.NumberFormat("es-MX", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 6,
-    }).format(s.cetesBalance);
-    const r = new Intl.NumberFormat("es-MX", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 4,
-    }).format(s.mxnPerCetes);
-    return `${c} CETES × ${r} MXN/CETES (cotización offramp Etherfuse)`;
+    return "Equivalente en pesos según el tipo del día (referencia, puede variar).";
   }
   if (s.kind === "no_context") {
-    return "Vincula tu cuenta en Identidad para ver tu saldo CETES valorado en MXN.";
+    return "Completa Identidad para ver tu saldo en pesos al día.";
   }
   if (s.kind === "disabled") {
-    return "La rampa Etherfuse no está habilitada en este entorno.";
+    return "Consulta de saldo no disponible en este momento.";
   }
   if (s.kind === "error") return s.message;
   return null;
@@ -98,10 +85,10 @@ export async function buildDashboardViewModel(): Promise<DashboardViewModel> {
   let saldoNote = cetesFootnote(cetesSaldo);
   if (cetesSaldo.kind === "no_context" && ledgerPrincipal > 0) {
     saldoNote =
-      "Saldo principal desde depósitos del ledger MVP (activa Identidad + Etherfuse para valor CETES en vivo).";
+      "Saldo según tus depósitos de prueba. Identidad te da el valor en vivo en pesos.";
   }
 
-  const movementsRecent = movementsAll.slice(0, 8);
+  const movementsRecent = movementsAll.slice(0, DASHBOARD_MOVEMENTS_PREVIEW_LIMIT);
 
   return {
     principalMxn,

@@ -51,7 +51,7 @@ export function MovementDetailSheet({
       .then(async (r) => {
         const data = await r.json().catch(() => ({}))
         if (!r.ok) {
-          throw new Error(typeof data.error === 'string' ? data.error : 'No se pudo cargar la orden')
+          throw new Error(typeof data.error === 'string' ? data.error : 'No se pudo cargar el comprobante')
         }
         return data
       })
@@ -112,14 +112,14 @@ export function MovementDetailSheet({
             label="Estado"
             value={movement.estado.charAt(0).toUpperCase() + movement.estado.slice(1)}
           />
-          <DetailRow label="Detalle" value={movement.detalle} />
+          <DetailRow label="Notas" value={movement.detalle} />
           {movement.orderId ? (
-            <DetailRow label="Orden Etherfuse" value={movement.orderId} mono />
+            <DetailRow label="Folio" value={movement.orderId} mono />
           ) : null}
           <div className="flex flex-col gap-2 border-t border-border pt-3">
-            <p className="text-sm text-muted-foreground">Transacción Stellar</p>
+            <p className="text-sm font-medium text-foreground">Comprobante público</p>
             {txLoading ? (
-              <p className="text-sm text-muted-foreground">Buscando firma on-chain…</p>
+              <p className="text-xs text-muted-foreground">Obteniendo enlace…</p>
             ) : null}
             {txError ? <p className="text-xs text-amber-600">{txError}</p> : null}
             {stellarUrl ? (
@@ -129,15 +129,15 @@ export function MovementDetailSheet({
                 rel="noopener noreferrer"
                 className="inline-flex w-full items-center justify-center rounded-full bg-foreground py-3 text-sm font-bold text-background hover:bg-foreground/90"
               >
-                Ver en Stellar Expert
+                Ver comprobante
               </a>
             ) : !txLoading && movement.source === 'etherfuse' ? (
               <p className="text-xs text-muted-foreground">
-                Aún no hay hash confirmado (onramp u offramp pendiente de firmar o procesar).
+                El comprobante aparece cuando la operación queda confirmada.
               </p>
             ) : !txLoading && movement.source === 'ledger' ? (
               <p className="text-xs text-muted-foreground">
-                Esta entrada es simulación MVP; el hash aparece si el run guardó `stellarTxHash`.
+                En pruebas internas el comprobante solo existe si se guardó al crear el movimiento.
               </p>
             ) : null}
             {sig ? (

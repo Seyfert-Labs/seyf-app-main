@@ -11,6 +11,7 @@ type HeroData = {
   principal: number
   adelantable: number
   puntos: number
+  tasaAnual: number
   /** CETES desde Etherfuse /lookup/stablebonds */
   stablebondCetes?: {
     loading: boolean
@@ -58,8 +59,8 @@ function splitCurrencyForDisplay(amount: number) {
 }
 
 const saldosQuickActions = [
-  { href: '/depositar', label: 'Añadir', icon: Plus },
-  { href: '/gastar', label: 'Retirar', icon: ArrowDownToLine },
+  { href: '/anadir', label: 'Añadir', icon: Plus },
+  { href: '/retirar', label: 'Retirar', icon: ArrowDownToLine },
   { href: '/historial', label: 'Historial', icon: Clock },
   { href: '/identidad', label: 'Identidad', icon: Info },
 ] as const
@@ -209,9 +210,18 @@ export function DashboardHeroCarousel({ data }: { data: HeroData }) {
                   </p>
                 ) : null}
               </div>
-            ) : null}
+            ) : (
+              <p className="mt-2 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+                <span>{data.tasaAnual.toFixed(2)}% anual</span>
+                <Info className="size-3.5 shrink-0 text-muted-foreground" strokeWidth={2.25} aria-hidden />
+              </p>
+            )}
 
-            <div className="mt-6 grid grid-cols-4 gap-x-1 gap-y-2">
+            <div
+              className="mt-6 grid grid-cols-4 gap-x-1 gap-y-2"
+              onPointerDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+            >
               {saldosQuickActions.map(({ href, label, icon: Icon }) => (
                 <Link
                   key={label}
@@ -231,14 +241,17 @@ export function DashboardHeroCarousel({ data }: { data: HeroData }) {
           </div>
 
           <div className="w-1/3 shrink-0 px-6 pb-2 pt-10 text-center">
-            <p className="text-[13px] font-medium text-muted-foreground">Adelanto de rendimiento</p>
+            <p className="text-[13px] font-medium text-muted-foreground">Adelanto</p>
             <p className="mt-1 text-[2.75rem] font-black leading-none tracking-tight tabular-nums text-foreground">
               {formatMXNFull(data.adelantable)}
             </p>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Se mostrará cuando haya datos de producto en backend
-            </p>
-            <Link href="/adelanto" className="mt-4 inline-block text-xs font-bold text-foreground underline-offset-4 hover:underline">
+            <p className="mt-2 text-xs text-muted-foreground">Sin usar tu ahorro principal</p>
+            <Link
+              href="/adelanto"
+              className="mt-4 inline-block text-xs font-bold text-foreground underline-offset-4 hover:underline"
+              onPointerDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+            >
               Más información →
             </Link>
           </div>
@@ -248,8 +261,8 @@ export function DashboardHeroCarousel({ data }: { data: HeroData }) {
             <p className="mt-1 text-[2.75rem] font-black leading-none tracking-tight tabular-nums text-foreground">
               {formatPuntos(data.puntos)}
             </p>
-            <p className="mt-2 text-xs text-muted-foreground">Por depositar, usar tu cuenta y referir</p>
-            <p className="mt-4 text-xs font-medium text-muted-foreground">Próximamente canjes y beneficios</p>
+            <p className="mt-2 text-xs text-muted-foreground">Por usar Seyf y referir amigos</p>
+            <p className="mt-4 text-xs font-medium text-muted-foreground">Canjes próximamente</p>
           </div>
         </motion.div>
       </div>
