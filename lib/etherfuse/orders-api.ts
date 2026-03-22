@@ -252,3 +252,33 @@ export function pickOrderDisplayFields(
 ): RampOrderTransactionDetails {
   return pickRampOrderTransactionDetails(order);
 }
+
+/**
+ * Respuestas del panel onramp (`/dev/etherfuse-ramp`): `mxn-cetes` o JSON tras mock SPEI
+ * (`orderDisplay`, `order`, `orderPolled`).
+ */
+export function extractConfirmedTxSignatureFromOnrampPanelJson(
+  jsonStr: string,
+): string | null {
+  const s = jsonStr.trim();
+  if (!s) return null;
+  try {
+    const root = JSON.parse(s) as Record<string, unknown>;
+    const od = root.orderDisplay;
+    if (od && typeof od === "object") {
+      const sig = (od as { confirmedTxSignature?: unknown })
+        .confirmedTxSignature;
+      if (typeof sig === "string" && sig.trim().length > 0) return sig.trim();
+    }
+    for (const key of ["order", "orderPolled", "orderAfterPoll"] as const) {
+      const raw = root[key];
+      if (raw) {
+        const d = pickRampOrderTransactionDetails(raw);
+        if (d.confirmedTxSignature) return d.confirmedTxSignature;
+      }
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
