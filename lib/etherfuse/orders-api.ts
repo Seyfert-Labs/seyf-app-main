@@ -48,6 +48,26 @@ export async function fetchOrdersFirstPage(): Promise<OrderRow[]> {
 }
 
 /**
+ * GET /ramp/customer/{customer_id}/orders — primera página (órdenes del cliente).
+ * @see https://docs.etherfuse.com/api-reference/customers/get-customer-orders
+ */
+export async function fetchCustomerOrdersFirstPage(
+  customerId: string,
+): Promise<OrderRow[]> {
+  const res = await etherfuseFetch(
+    `/ramp/customer/${encodeURIComponent(customerId)}/orders`,
+    { method: "GET" },
+  );
+  const { json, text } = await etherfuseReadBody<{ items?: OrderRow[] }>(res);
+  if (!res.ok) {
+    throw new Error(
+      `Etherfuse /ramp/customer/.../orders (${res.status}): ${text.slice(0, 400)}`,
+    );
+  }
+  return Array.isArray(json?.items) ? json.items : [];
+}
+
+/**
  * Busca onramp pendiente (status created) con mismo banco y mismo monto fiat.
  */
 export function findPendingOnrampOrderForAmount(
@@ -254,7 +274,7 @@ export function pickOrderDisplayFields(
 }
 
 /**
- * Respuestas del panel onramp (`/dev/etherfuse-ramp`): `mxn-cetes` o JSON tras mock SPEI
+ * Respuestas del panel onramp (`/anadir`): `mxn-cetes` o JSON tras mock SPEI
  * (`orderDisplay`, `order`, `orderPolled`).
  */
 export function extractConfirmedTxSignatureFromOnrampPanelJson(

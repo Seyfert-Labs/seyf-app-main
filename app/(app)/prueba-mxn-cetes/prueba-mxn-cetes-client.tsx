@@ -219,8 +219,8 @@ export default function PruebaMxnCetesClient() {
       </p>
 
       <p className="text-center text-xs">
-        <Link href="/depositar" className="text-foreground underline underline-offset-2">
-          Ir a Depositar
+        <Link href="/anadir" className="text-foreground underline underline-offset-2">
+          Ir a Añadir
         </Link>
       </p>
     </AppPageBody>

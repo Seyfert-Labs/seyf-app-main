@@ -1,9 +1,6 @@
 'use client'
 
-import {
-  pickOfframpOrderSummary,
-  pickOnrampDepositSummary,
-} from '@/lib/etherfuse/order-create-response'
+import { pickOnrampDepositSummary } from '@/lib/etherfuse/order-create-response'
 import {
   type RampOrderTransactionDetails,
   pickRampOrderTransactionDetails,
@@ -210,57 +207,3 @@ export function OrderCreatedDepositCard({ orderApiJson }: { orderApiJson: string
   )
 }
 
-/** Tras POST order offramp: statusPage, burn o anchor. */
-export function OfframpOrderCreatedCard({ orderApiJson }: { orderApiJson: string }) {
-  let s: ReturnType<typeof pickOfframpOrderSummary> | null = null
-  try {
-    const root = JSON.parse(orderApiJson) as { order?: unknown }
-    if (!root.order) return null
-    s = pickOfframpOrderSummary(root.order)
-  } catch {
-    return null
-  }
-  if (!s?.orderId) return null
-  const burnPreview =
-    s.burnTransaction && s.burnTransaction.length > 180
-      ? `${s.burnTransaction.slice(0, 180)}…`
-      : s.burnTransaction
-  return (
-    <div className="rounded-[1rem] border border-border bg-card/80 p-4 text-sm">
-      <p className="text-xs font-bold text-foreground">Orden offramp creada</p>
-      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-        Debes firmar y enviar la transacción on-chain (burn o pago anchor). Puedes usar la{' '}
-        <span className="font-medium text-foreground">statusPage</span> en el navegador o integrar la wallet
-        en tu app.{' '}
-        <a
-          href="https://docs.etherfuse.com/guides/testing-offramps"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-emerald-600 underline underline-offset-2"
-        >
-          Guía offramp
-        </a>
-      </p>
-      <div className="mt-3 space-y-0">
-        <DetailRow label="orderId" value={s.orderId} />
-        <DetailRow label="statusPage" value={s.statusPage} />
-        {s.statusPage ? (
-          <p className="py-2 text-xs">
-            <a
-              href={s.statusPage}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-semibold text-emerald-600 underline underline-offset-2"
-            >
-              Abrir página de firma Etherfuse
-            </a>
-          </p>
-        ) : null}
-        <DetailRow label="burnTransaction (inicio)" value={burnPreview} />
-        <DetailRow label="withdrawAnchorAccount" value={s.withdrawAnchorAccount} />
-        <DetailRow label="withdrawMemo" value={s.withdrawMemo} />
-        <DetailRow label="withdrawMemoType" value={s.withdrawMemoType} />
-      </div>
-    </div>
-  )
-}
