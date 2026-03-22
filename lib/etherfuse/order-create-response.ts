@@ -137,3 +137,5 @@ export function pickOfframpOrderSummary(order: unknown): {
           : null,
   };
 }
+
+export type OfframpOrderSummary = ReturnType<typeof pickOfframpOrderSummary>;

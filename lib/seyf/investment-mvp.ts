@@ -64,7 +64,7 @@ function newCycleId() {
 }
 
 /** Tasa anual de referencia mock (sustituir por feed Etherfuse / Banxico). */
-const MOCK_ANNUAL_RATE_PERCENT = 9.8
+export const MOCK_ANNUAL_RATE_PERCENT = 9.8
 
 export type RunMockInput = {
   depositId: string

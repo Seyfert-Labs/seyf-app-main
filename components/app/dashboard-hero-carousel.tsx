@@ -52,8 +52,8 @@ function splitCurrencyForDisplay(amount: number) {
 }
 
 const saldosQuickActions = [
-  { href: '/depositar', label: 'Añadir', icon: Plus },
-  { href: '/gastar', label: 'Retirar', icon: ArrowDownToLine },
+  { href: '/anadir', label: 'Añadir', icon: Plus },
+  { href: '/retirar', label: 'Retirar', icon: ArrowDownToLine },
   { href: '/historial', label: 'Historial', icon: Clock },
   { href: '/identidad', label: 'Identidad', icon: Info },
 ] as const
@@ -149,7 +149,11 @@ export function DashboardHeroCarousel({ data }: { data: HeroData }) {
               <span>{data.tasaAnual.toFixed(2)}% anual</span>
               <Info className="size-3.5 shrink-0 text-muted-foreground" strokeWidth={2.25} aria-hidden />
             </p>
-            <div className="mt-6 grid grid-cols-4 gap-x-1 gap-y-2">
+            <div
+              className="mt-6 grid grid-cols-4 gap-x-1 gap-y-2"
+              onPointerDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+            >
               {saldosQuickActions.map(({ href, label, icon: Icon }) => (
                 <Link
                   key={label}
@@ -174,7 +178,12 @@ export function DashboardHeroCarousel({ data }: { data: HeroData }) {
               {formatMXNFull(data.adelantable)}
             </p>
             <p className="mt-2 text-xs text-muted-foreground">Disponible sin tocar tu ahorro</p>
-            <Link href="/adelanto" className="mt-4 inline-block text-xs font-bold text-foreground underline-offset-4 hover:underline">
+            <Link
+              href="/adelanto"
+              className="mt-4 inline-block text-xs font-bold text-foreground underline-offset-4 hover:underline"
+              onPointerDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+            >
               Más información →
             </Link>
           </div>

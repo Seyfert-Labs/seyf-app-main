@@ -1,46 +1,16 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
 import { AppPageBody } from '@/components/app/app-page-body'
 import { DashboardHeroCarousel } from '@/components/app/dashboard-hero-carousel'
+import { MovementDetailSheet } from '@/components/app/movement-detail-sheet'
+import { iconForMovimientoTipo } from '@/components/app/movement-tipo-icons'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-
-const mockData = {
-  nombre: 'Carlos',
-  principal: 8500,
-  rendimiento: 127.43,
-  adelantable: 98.5,
-  saldoGasto: 350,
-  tasa: 9.8,
-  diasRestantes: 18,
-  puntos: 1240,
-}
-
-const mockTransactions = [
-  {
-    id: '1',
-    title: 'Oxxo Cel',
-    subtitle: 'Hoy · 12:32',
-    amount: -323,
-    initial: 'OC',
-  },
-  {
-    id: '2',
-    title: 'SPEI recibido',
-    subtitle: 'Ayer',
-    amount: 1500,
-    initial: 'S',
-  },
-  {
-    id: '3',
-    title: 'Netflix',
-    subtitle: '3 feb',
-    amount: -199,
-    initial: 'N',
-  },
-]
+import type { DashboardViewModel } from '@/lib/seyf/dashboard-view-model'
+import { formatMovementListSubtitle, type UserMovement } from '@/lib/seyf/user-movements-types'
 
 function formatMXN(amount: number) {
   return new Intl.NumberFormat('es-MX', {
@@ -61,21 +31,26 @@ function formatMXNFull(amount: number) {
 
 export default function DashboardClient({
   showEtherfuseRampDev = false,
+  vm,
 }: {
   showEtherfuseRampDev?: boolean
+  vm: DashboardViewModel
 }) {
-  const data = mockData
+  const [selected, setSelected] = useState<UserMovement | null>(null)
 
   return (
     <AppPageBody className="space-y-6 pt-4">
       <DashboardHeroCarousel
         data={{
-          principal: data.principal,
-          adelantable: data.adelantable,
-          puntos: data.puntos,
-          tasaAnual: data.tasa,
+          principal: vm.principalMxn,
+          adelantable: vm.adelantableMxn,
+          puntos: vm.puntos,
+          tasaAnual: vm.tasaAnual,
         }}
       />
+      {vm.saldoNote ? (
+        <p className="-mt-2 px-1 text-center text-[11px] leading-snug text-muted-foreground">{vm.saldoNote}</p>
+      ) : null}
 
       {/* Actividad reciente */}
       <section className="overflow-hidden rounded-[1.5rem] border border-border bg-card">
@@ -83,26 +58,43 @@ export default function DashboardClient({
           <h2 className="text-sm font-bold text-foreground">Actividad reciente</h2>
         </div>
         <ul className="divide-y divide-border">
-          {mockTransactions.map((tx) => (
-            <li key={tx.id} className="flex items-center gap-3 px-4 py-3.5">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-bold text-foreground">
-                {tx.initial}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-foreground">{tx.title}</p>
-                <p className="text-xs text-muted-foreground">{tx.subtitle}</p>
-              </div>
-              <span
-                className={cn(
-                  'shrink-0 text-sm font-bold tabular-nums',
-                  tx.amount < 0 ? 'text-foreground' : 'text-[#22C55E]',
-                )}
-              >
-                {tx.amount < 0 ? '' : '+'}
-                {formatMXN(tx.amount)}
-              </span>
+          {vm.movementsRecent.length === 0 ? (
+            <li className="px-4 py-8 text-center text-sm text-muted-foreground">
+              Sin movimientos. Órdenes Etherfuse e inversiones MVP aparecerán aquí.
             </li>
-          ))}
+          ) : (
+            vm.movementsRecent.map((mov) => {
+              const esPositivo = mov.monto >= 0
+              return (
+                <li key={mov.id} className="px-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelected(mov)}
+                    className="flex w-full items-center gap-3 rounded-xl px-2 py-3.5 text-left transition hover:bg-secondary/80"
+                  >
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-secondary text-foreground">
+                      {iconForMovimientoTipo(mov.tipo)}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-foreground">{mov.titulo}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatMovementListSubtitle(mov.createdAt)}
+                      </p>
+                    </div>
+                    <span
+                      className={cn(
+                        'shrink-0 text-sm font-bold tabular-nums',
+                        esPositivo ? 'text-[#22C55E]' : 'text-foreground',
+                      )}
+                    >
+                      {esPositivo ? '+' : ''}
+                      {formatMXNFull(Math.abs(mov.monto))}
+                    </span>
+                  </button>
+                </li>
+              )
+            })
+          )}
         </ul>
         <div className="border-t border-border px-2 py-2">
           <Link
@@ -122,9 +114,9 @@ export default function DashboardClient({
         </Link>
         <div className="mt-4 flex gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {[
-            { label: 'Ahorro', sub: formatMXNFull(data.principal), tone: 'from-violet-600/90 to-indigo-800/90' },
-            { label: 'Rendimiento', sub: formatMXNFull(data.rendimiento), tone: 'from-zinc-600/90 to-zinc-800/90' },
-            { label: 'Adelanto', sub: formatMXNFull(data.adelantable), tone: 'from-slate-600/90 to-slate-800/90' },
+            { label: 'Ahorro', sub: formatMXNFull(vm.principalMxn), tone: 'from-violet-600/90 to-indigo-800/90' },
+            { label: 'Rendimiento', sub: formatMXNFull(vm.rendimientoMxn), tone: 'from-zinc-600/90 to-zinc-800/90' },
+            { label: 'Adelanto', sub: formatMXNFull(vm.adelantableMxn), tone: 'from-slate-600/90 to-slate-800/90' },
           ].map((card) => (
             <div
               key={card.label}
@@ -144,7 +136,7 @@ export default function DashboardClient({
       <section className="rounded-[1.5rem] border border-border bg-secondary/40 p-5">
         <p className="text-xs font-medium text-muted-foreground">Puedes pedir adelantado</p>
         <p className="mt-1 text-2xl font-black tabular-nums tracking-tight text-foreground">
-          {formatMXNFull(data.adelantable)}
+          {formatMXNFull(vm.adelantableMxn)}
         </p>
         <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
           Sin tocar tu ahorro. Solo parte de lo que ya generaste.
@@ -156,11 +148,11 @@ export default function DashboardClient({
         </Link>
       </section>
 
-      {data.saldoGasto > 0 && (
+      {vm.saldoGastoMxn > 0 && (
         <section className="flex items-center justify-between rounded-[1.5rem] border border-border bg-card px-4 py-4">
           <div>
             <p className="text-xs font-medium text-muted-foreground">Saldo para gastar</p>
-            <p className="text-xl font-black tabular-nums text-foreground">{formatMXNFull(data.saldoGasto)}</p>
+            <p className="text-xl font-black tabular-nums text-foreground">{formatMXNFull(vm.saldoGastoMxn)}</p>
           </div>
           <Link href="/gastar">
             <Button
@@ -177,13 +169,13 @@ export default function DashboardClient({
         <section className="rounded-[1.25rem] border border-dashed border-amber-500/25 bg-amber-500/[0.06] p-4 space-y-2">
           <p className="text-xs font-bold text-amber-200/90">Herramientas de desarrollo</p>
           <Link
-            href="/dev/etherfuse-ramp"
+            href="/anadir"
             className="block text-sm font-semibold text-foreground underline-offset-4 hover:underline"
           >
             Panel onramp Etherfuse (sandbox)
           </Link>
           <Link
-            href="/dev/etherfuse-offramp"
+            href="/retirar"
             className="block text-sm font-semibold text-foreground underline-offset-4 hover:underline"
           >
             Panel offramp Etherfuse (sandbox)
@@ -215,6 +207,14 @@ export default function DashboardClient({
           </Link>
         </div>
       </section>
+
+      {selected ? (
+        <MovementDetailSheet
+          movement={selected}
+          onClose={() => setSelected(null)}
+          icon={iconForMovimientoTipo(selected.tipo)}
+        />
+      ) : null}
     </AppPageBody>
   )
 }
