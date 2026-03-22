@@ -1,55 +1,16 @@
 'use client'
 
 import Link from 'next/link'
+import { useEffect, useMemo, useState } from 'react'
 import { ChevronRight } from 'lucide-react'
+import { useAccesly } from 'accesly'
 import { AppPageBody } from '@/components/app/app-page-body'
 import { DashboardHeroCarousel } from '@/components/app/dashboard-hero-carousel'
 import { Button } from '@/components/ui/button'
+import { balanceForAssetCode } from '@/lib/seyf/accesly-balances'
+import { cetesStablebondDisplayFromRow } from '@/lib/seyf/stablebond-cetes-display'
+import type { EtherfuseStablebondInfo } from '@/lib/etherfuse/stablebonds-lookup'
 import { cn } from '@/lib/utils'
-
-const mockData = {
-  nombre: 'Carlos',
-  principal: 8500,
-  rendimiento: 127.43,
-  adelantable: 98.5,
-  saldoGasto: 350,
-  tasa: 9.8,
-  diasRestantes: 18,
-  puntos: 1240,
-}
-
-const mockTransactions = [
-  {
-    id: '1',
-    title: 'Oxxo Cel',
-    subtitle: 'Hoy · 12:32',
-    amount: -323,
-    initial: 'OC',
-  },
-  {
-    id: '2',
-    title: 'SPEI recibido',
-    subtitle: 'Ayer',
-    amount: 1500,
-    initial: 'S',
-  },
-  {
-    id: '3',
-    title: 'Netflix',
-    subtitle: '3 feb',
-    amount: -199,
-    initial: 'N',
-  },
-]
-
-function formatMXN(amount: number) {
-  return new Intl.NumberFormat('es-MX', {
-    style: 'currency',
-    currency: 'MXN',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount)
-}
 
 function formatMXNFull(amount: number) {
   return new Intl.NumberFormat('es-MX', {
@@ -64,7 +25,104 @@ export default function DashboardClient({
 }: {
   showEtherfuseRampDev?: boolean
 }) {
-  const data = mockData
+  const { wallet, assetBalances, loading, refreshBalance } = useAccesly()
+
+  const [stablebondCetes, setStablebondCetes] = useState<{
+    loading: boolean
+    annualPercent: number | null
+    priceMx: number | null
+    calculatedAt?: string
+  }>({ loading: false, annualPercent: null, priceMx: null })
+
+  useEffect(() => {
+    if (wallet?.stellarAddress) void refreshBalance()
+  }, [wallet?.stellarAddress, refreshBalance])
+
+  useEffect(() => {
+    if (!wallet) {
+      setStablebondCetes({
+        loading: false,
+        annualPercent: null,
+        priceMx: null,
+      })
+      return
+    }
+    let cancelled = false
+    setStablebondCetes((s) => ({ ...s, loading: true }))
+    void fetch('/api/seyf/etherfuse/lookup/stablebonds?cetesOnly=1')
+      .then(async (r) => {
+        const data = (await r.json().catch(() => ({}))) as {
+          cetes?: EtherfuseStablebondInfo | null
+          calculatedAt?: string
+          error?: string
+        }
+        if (cancelled) return
+        if (!r.ok) {
+          setStablebondCetes({
+            loading: false,
+            annualPercent: null,
+            priceMx: null,
+          })
+          return
+        }
+        const parsed = cetesStablebondDisplayFromRow(data.cetes ?? null)
+        setStablebondCetes({
+          loading: false,
+          annualPercent: parsed.annualPercent,
+          priceMx: parsed.priceMx,
+          calculatedAt: data.calculatedAt,
+        })
+      })
+      .catch(() => {
+        if (cancelled) return
+        setStablebondCetes({
+          loading: false,
+          annualPercent: null,
+          priceMx: null,
+        })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [wallet?.stellarAddress])
+
+  const mxne = useMemo(() => balanceForAssetCode(assetBalances, 'MXNE'), [assetBalances])
+
+  const data = useMemo(
+    () => ({
+      principal: mxne,
+      rendimiento: 0,
+      adelantable: 0,
+      saldoGasto: 0,
+      puntos: 0,
+    }),
+    [mxne],
+  )
+
+  if (loading && !wallet) {
+    return (
+      <AppPageBody className="space-y-6 pt-4">
+        <div className="h-[22rem] animate-pulse rounded-[1.75rem] border border-border bg-secondary/40" />
+        <div className="h-48 animate-pulse rounded-[1.5rem] border border-border bg-secondary/30" />
+      </AppPageBody>
+    )
+  }
+
+  if (!wallet) {
+    return (
+      <AppPageBody className="space-y-4 pt-4">
+        <div className="rounded-[1.5rem] border border-border bg-card px-5 py-8 text-center">
+          <p className="text-sm font-bold text-foreground">Conecta tu wallet</p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Para ver tu saldo MXNe en el tablero, inicia sesión con Accesly desde el inicio.
+          </p>
+          <Button asChild className="mt-6 h-11 w-full max-w-xs rounded-full font-bold">
+            <Link href="/">Ir a conectar</Link>
+          </Button>
+        </div>
+      </AppPageBody>
+    )
+  }
 
   return (
     <AppPageBody className="space-y-6 pt-4">
@@ -73,48 +131,30 @@ export default function DashboardClient({
           principal: data.principal,
           adelantable: data.adelantable,
           puntos: data.puntos,
-          tasaAnual: data.tasa,
+          stablebondCetes,
         }}
       />
 
-      {/* Actividad reciente */}
       <section className="overflow-hidden rounded-[1.5rem] border border-border bg-card">
         <div className="border-b border-border px-4 py-3">
           <h2 className="text-sm font-bold text-foreground">Actividad reciente</h2>
         </div>
-        <ul className="divide-y divide-border">
-          {mockTransactions.map((tx) => (
-            <li key={tx.id} className="flex items-center gap-3 px-4 py-3.5">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-bold text-foreground">
-                {tx.initial}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-foreground">{tx.title}</p>
-                <p className="text-xs text-muted-foreground">{tx.subtitle}</p>
-              </div>
-              <span
-                className={cn(
-                  'shrink-0 text-sm font-bold tabular-nums',
-                  tx.amount < 0 ? 'text-foreground' : 'text-[#22C55E]',
-                )}
-              >
-                {tx.amount < 0 ? '' : '+'}
-                {formatMXN(tx.amount)}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <div className="px-4 py-10 text-center">
+          <p className="text-sm font-medium text-foreground">Sin movimientos en esta vista</p>
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+            Los movimientos on-chain viven en Historial (Horizon). SPEI/Etherfuse se añadirán cuando conectemos esa API.
+          </p>
+        </div>
         <div className="border-t border-border px-2 py-2">
           <Link
             href="/historial"
             className="flex w-full items-center justify-center rounded-xl py-2.5 text-sm font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground"
           >
-            Ver todo
+            Ver historial
           </Link>
         </div>
       </section>
 
-      {/* Tarjetas / productos */}
       <section className="rounded-[1.5rem] border border-border bg-card/50 p-4">
         <Link href="/dashboard" className="flex items-center justify-between text-sm font-bold text-foreground">
           <span>Tus productos</span>
@@ -122,8 +162,7 @@ export default function DashboardClient({
         </Link>
         <div className="mt-4 flex gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {[
-            { label: 'Ahorro', sub: formatMXNFull(data.principal), tone: 'from-violet-600/90 to-indigo-800/90' },
-            { label: 'Rendimiento', sub: formatMXNFull(data.rendimiento), tone: 'from-zinc-600/90 to-zinc-800/90' },
+            { label: 'Ahorro (MXNe)', sub: formatMXNFull(data.principal), tone: 'from-violet-600/90 to-indigo-800/90' },
             { label: 'Adelanto', sub: formatMXNFull(data.adelantable), tone: 'from-slate-600/90 to-slate-800/90' },
           ].map((card) => (
             <div
@@ -140,14 +179,15 @@ export default function DashboardClient({
         </div>
       </section>
 
-      {/* Adelanto destacado */}
       <section className="rounded-[1.5rem] border border-border bg-secondary/40 p-5">
         <p className="text-xs font-medium text-muted-foreground">Puedes pedir adelantado</p>
         <p className="mt-1 text-2xl font-black tabular-nums tracking-tight text-foreground">
           {formatMXNFull(data.adelantable)}
         </p>
         <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-          Sin tocar tu ahorro. Solo parte de lo que ya generaste.
+          {data.adelantable > 0
+            ? 'Sin tocar tu ahorro. Solo parte de lo que ya generaste.'
+            : 'El monto disponible vendrá de tu actividad y rendimientos (API); no está en la wallet on-chain.'}
         </p>
         <Link href="/adelanto" className="mt-4 block">
           <Button className="h-12 w-full rounded-full bg-foreground text-base font-bold text-background hover:bg-foreground/90">
@@ -197,7 +237,6 @@ export default function DashboardClient({
         </section>
       )}
 
-      {/* Verificación */}
       <section className="flex gap-3 rounded-[1.25rem] border border-amber-500/20 bg-amber-500/[0.07] p-4">
         <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-amber-200">
           <span className="text-sm font-bold">!</span>

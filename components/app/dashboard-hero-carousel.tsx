@@ -11,7 +11,13 @@ type HeroData = {
   principal: number
   adelantable: number
   puntos: number
-  tasaAnual: number
+  /** CETES desde Etherfuse /lookup/stablebonds */
+  stablebondCetes?: {
+    loading: boolean
+    annualPercent: number | null
+    priceMx: number | null
+    calculatedAt?: string
+  }
 }
 
 const TABS = ['Saldos', 'Adelanto', 'Puntos'] as const
@@ -64,8 +70,25 @@ function formatPuntos(n: number) {
 
 const spring = { type: 'spring' as const, stiffness: 420, damping: 38, mass: 0.85 }
 
+function formatStablebondUpdatedAt(iso?: string) {
+  if (!iso) return null
+  try {
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) return null
+    return new Intl.DateTimeFormat('es-MX', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    }).format(d)
+  } catch {
+    return null
+  }
+}
+
 export function DashboardHeroCarousel({ data }: { data: HeroData }) {
   const { main: balanceMain, cents: balanceCents } = splitCurrencyForDisplay(data.principal)
+  const sb = data.stablebondCetes
+  const stablebondUpdatedLabel =
+    sb && !sb.loading ? formatStablebondUpdatedAt(sb.calculatedAt) : null
   const containerRef = useRef<HTMLDivElement>(null)
   const [viewportW, setViewportW] = useState(0)
   const [index, setIndex] = useState(0)
@@ -136,7 +159,7 @@ export function DashboardHeroCarousel({ data }: { data: HeroData }) {
           onDragEnd={onDragEnd}
         >
           <div className="w-1/3 shrink-0 px-4 pb-4 pt-10 text-center">
-            <p className="text-[13px] font-medium text-muted-foreground">Rendimientos diarios</p>
+            <p className="text-[13px] font-medium text-muted-foreground">Saldo MXNe</p>
             <p className="mt-1 inline-flex flex-wrap items-baseline justify-center gap-0.5 leading-none tracking-tight text-foreground">
               <span className="text-[2.35rem] font-black tabular-nums sm:text-[2.65rem]">{balanceMain}</span>
               {balanceCents ? (
@@ -145,10 +168,49 @@ export function DashboardHeroCarousel({ data }: { data: HeroData }) {
                 </span>
               ) : null}
             </p>
-            <p className="mt-2 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-              <span>{data.tasaAnual.toFixed(2)}% anual</span>
-              <Info className="size-3.5 shrink-0 text-muted-foreground" strokeWidth={2.25} aria-hidden />
-            </p>
+
+            {sb?.loading ? (
+              <div
+                className="mx-auto mt-3 h-[3.25rem] max-w-[16rem] animate-pulse rounded-xl bg-secondary/60 ring-1 ring-border/50"
+                aria-hidden
+              />
+            ) : sb && (sb.annualPercent != null || sb.priceMx != null) ? (
+              <div className="mx-auto mt-3 max-w-[18rem] rounded-xl bg-secondary/55 px-3 py-2.5 text-center ring-1 ring-border/60">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  Stablebond CETES · Etherfuse
+                </p>
+                {sb.annualPercent != null ? (
+                  <p className="mt-1 text-2xl font-black tabular-nums leading-none text-emerald-300/95">
+                    {sb.annualPercent.toFixed(2)}%
+                    <span className="ml-1 text-xs font-bold text-muted-foreground">anual</span>
+                  </p>
+                ) : sb.priceMx != null ? (
+                  <p className="mt-1 text-lg font-black tabular-nums text-foreground">
+                    {new Intl.NumberFormat('es-MX', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 6,
+                    }).format(sb.priceMx)}{' '}
+                    <span className="text-xs font-semibold text-muted-foreground">MXN / CETES</span>
+                  </p>
+                ) : null}
+                {sb.priceMx != null && sb.annualPercent != null ? (
+                  <p className="mt-1 text-[11px] tabular-nums text-muted-foreground">
+                    Precio CETES{' '}
+                    {new Intl.NumberFormat('es-MX', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 6,
+                    }).format(sb.priceMx)}{' '}
+                    MXN
+                  </p>
+                ) : null}
+                {stablebondUpdatedLabel ? (
+                  <p className="mt-1 text-[9px] text-muted-foreground/70">
+                    Actualizado {stablebondUpdatedLabel}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
             <div className="mt-6 grid grid-cols-4 gap-x-1 gap-y-2">
               {saldosQuickActions.map(({ href, label, icon: Icon }) => (
                 <Link
@@ -173,7 +235,9 @@ export function DashboardHeroCarousel({ data }: { data: HeroData }) {
             <p className="mt-1 text-[2.75rem] font-black leading-none tracking-tight tabular-nums text-foreground">
               {formatMXNFull(data.adelantable)}
             </p>
-            <p className="mt-2 text-xs text-muted-foreground">Disponible sin tocar tu ahorro</p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Se mostrará cuando haya datos de producto en backend
+            </p>
             <Link href="/adelanto" className="mt-4 inline-block text-xs font-bold text-foreground underline-offset-4 hover:underline">
               Más información →
             </Link>
