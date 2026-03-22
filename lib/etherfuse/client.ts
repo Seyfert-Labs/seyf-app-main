@@ -41,6 +41,30 @@ export async function etherfuseReadBody<T = unknown>(
   }
 }
 
+/**
+ * Mensaje legible desde cuerpos JSON de error de Etherfuse (OpenAPI usa `error`; a veces hay otros campos).
+ */
+export function extractEtherfuseErrorMessage(
+  json: unknown,
+  fallbackText: string,
+  maxLen = 800,
+): string {
+  if (json && typeof json === "object") {
+    const o = json as Record<string, unknown>;
+    const err = o.error;
+    if (typeof err === "string" && err.trim()) return err.trim();
+    if (Array.isArray(err) && err.length > 0 && typeof err[0] === "string") {
+      return err.filter((x) => typeof x === "string").join("; ");
+    }
+    const msg = o.message;
+    if (typeof msg === "string" && msg.trim()) return msg.trim();
+    const detail = o.detail;
+    if (typeof detail === "string" && detail.trim()) return detail.trim();
+  }
+  const t = fallbackText.trim();
+  return t.length > 0 ? t.slice(0, maxLen) : "Error desconocido de Etherfuse";
+}
+
 /** Verifica la API key contra GET /ramp/me (sandbox o prod según ETHERFUSE_API_BASE_URL). */
 export async function verifyEtherfuseApiKey(): Promise<{
   ok: true;
@@ -54,9 +78,8 @@ export async function verifyEtherfuseApiKey(): Promise<{
       approvedAt: string | null;
     }>(res);
   if (!res.ok) {
-    throw new Error(
-      `Etherfuse /ramp/me falló (${res.status}): ${text.slice(0, 500)}`,
-    );
+    const msg = extractEtherfuseErrorMessage(json, text, 500);
+    throw new Error(`Etherfuse /ramp/me falló (${res.status}): ${msg}`);
   }
   if (!json || typeof json !== "object") {
     throw new Error(

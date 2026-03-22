@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { etherfuseFetch, etherfuseReadBody } from "./client";
 import { normalizeStellarPublicKey } from "./stellar-public-key";
 
@@ -76,7 +75,11 @@ export async function findRampContextByWalletPublicKey(
           ? bJson.items[0]?.bankAccountId
           : undefined;
       const bankAccountId =
-        typeof first === "string" && first.length > 0 ? first : randomUUID();
+        typeof first === "string" && first.length > 0 ? first : null;
+      /** Sin CLABE aún no se puede rampar; un UUID inventado rompía cotización/orden. */
+      if (!bankAccountId) {
+        return null;
+      }
 
       return { customerId, bankAccountId };
     }

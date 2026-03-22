@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getEtherfuseOnboardingSession } from "@/lib/etherfuse/onboarding-session";
+import { resolveMvpPartnerCryptoWalletId } from "@/lib/etherfuse/partner-accounts";
 import { createMxOnrampOrder } from "@/lib/etherfuse/ramp-api";
+import { getEtherfuseRampContext } from "@/lib/seyf/etherfuse-ramp-context";
 import { guardEtherfuseRampRoutes } from "@/lib/seyf/etherfuse-ramp-guard";
 
 const bodySchema = z.object({
@@ -16,10 +17,13 @@ export async function POST(req: Request) {
   const denied = guardEtherfuseRampRoutes();
   if (denied) return denied;
 
-  const session = await getEtherfuseOnboardingSession();
-  if (!session) {
+  const ctx = await getEtherfuseRampContext();
+  if (!ctx) {
     return NextResponse.json(
-      { error: "Sesión Etherfuse requerida. Completa el flujo en /identidad." },
+      {
+        error:
+          "Sin contexto rampa: cookie /identidad o (solo dev) ETHERFUSE_MVP_* en .env.local.",
+      },
       { status: 401 },
     );
   }
@@ -37,12 +41,20 @@ export async function POST(req: Request) {
   }
 
   try {
+    let cryptoWalletId: string | undefined;
+    try {
+      cryptoWalletId = await resolveMvpPartnerCryptoWalletId(ctx.publicKey);
+    } catch {
+      cryptoWalletId = undefined;
+    }
     const order = await createMxOnrampOrder({
-      bankAccountId: session.bankAccountId,
+      bankAccountId: ctx.bankAccountId,
       quoteId: parsed.data.quoteId,
-      publicKey: session.publicKey,
+      ...(cryptoWalletId
+        ? { cryptoWalletId }
+        : { publicKey: ctx.publicKey }),
     });
-    return NextResponse.json({ order });
+    return NextResponse.json({ order, contextSource: ctx.source });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Error al crear orden";
     const conflict = message.includes("409") || message.toLowerCase().includes("pending");

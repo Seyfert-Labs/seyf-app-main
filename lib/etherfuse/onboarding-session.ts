@@ -2,6 +2,7 @@ import { cookies } from 'next/headers'
 import { z } from 'zod'
 import { normalizeStellarPublicKey } from '@/lib/etherfuse/stellar-public-key'
 
+/** Nombre httpOnly; el JSON debe ser UUIDs creados con la misma org que `ETHERFUSE_API_KEY`. */
 const COOKIE_NAME = 'seyf_ef_onboarding'
 
 const sessionSchema = z.object({

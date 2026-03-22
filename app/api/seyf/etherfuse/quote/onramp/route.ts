@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getEtherfuseOnboardingSession } from "@/lib/etherfuse/onboarding-session";
 import {
   createMxOnrampQuote,
   fetchRampableAssetsForWallet,
   pickOnrampTargetIdentifier,
 } from "@/lib/etherfuse/ramp-api";
+import { getEtherfuseRampContext } from "@/lib/seyf/etherfuse-ramp-context";
 import { guardEtherfuseRampRoutes } from "@/lib/seyf/etherfuse-ramp-guard";
 
 const bodySchema = z.object({
@@ -21,10 +21,13 @@ export async function POST(req: Request) {
   const denied = guardEtherfuseRampRoutes();
   if (denied) return denied;
 
-  const session = await getEtherfuseOnboardingSession();
-  if (!session) {
+  const ctx = await getEtherfuseRampContext();
+  if (!ctx) {
     return NextResponse.json(
-      { error: "Sesión Etherfuse requerida. Completa el flujo en /identidad." },
+      {
+        error:
+          "Sin contexto rampa: cookie /identidad o (solo dev) variables ETHERFUSE_MVP_* en .env.local.",
+      },
       { status: 401 },
     );
   }
@@ -43,7 +46,7 @@ export async function POST(req: Request) {
 
   try {
     const { assets } = await fetchRampableAssetsForWallet({
-      walletPublicKey: session.publicKey,
+      walletPublicKey: ctx.publicKey,
     });
     const target = pickOnrampTargetIdentifier(
       assets,
@@ -60,13 +63,18 @@ export async function POST(req: Request) {
     }
 
     const quote = await createMxOnrampQuote({
-      customerId: session.customerId,
+      customerId: ctx.customerId,
       sourceAmount: parsed.data.sourceAmount,
       targetAssetIdentifier: target,
     });
-    return NextResponse.json({ quote, targetAssetUsed: target });
+    return NextResponse.json({
+      quote,
+      targetAssetUsed: target,
+      contextSource: ctx.source,
+    });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Error al cotizar";
+    console.error("[quote/onramp]", message);
     return NextResponse.json({ error: message }, { status: 502 });
   }
 }

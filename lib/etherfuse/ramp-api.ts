@@ -1,5 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { etherfuseFetch, etherfuseReadBody } from "./client";
+import {
+  etherfuseFetch,
+  etherfuseReadBody,
+  extractEtherfuseErrorMessage,
+} from "./client";
 import {
   getEtherfuseDefaultBlockchain,
   type EtherfuseBlockchain,
@@ -35,14 +39,19 @@ export async function fetchRampableAssetsForWallet(params: {
     res,
   );
   if (!res.ok) {
-    throw new Error(`Etherfuse /ramp/assets (${res.status}): ${text.slice(0, 400)}`);
+    const msg = extractEtherfuseErrorMessage(json, text, 400);
+    throw new Error(`Etherfuse /ramp/assets (${res.status}): ${msg}`);
   }
   const assets = json?.assets;
   return { assets: Array.isArray(assets) ? assets : [] };
 }
 
 /**
- * Elige CODE:ISSUER para onramp MXN → crypto (preferencia Seyf: MXNe si existe, luego USDC/CETES).
+ * Elige CODE:ISSUER para onramp MXN → crypto (preferencia Seyf: CETES estable, luego MXNe/USDC).
+ *
+ * `ETHERFUSE_ONRAMP_TARGET_ASSET` ya no tiene prioridad sobre GET /ramp/assets: un issuer obsoleto
+ * en .env provoca `NonStableAsset` en sandbox; solo se usa si coincide con un `identifier` devuelto
+ * por la API o si la lista de activos viene vacía.
  */
 export function pickOnrampTargetIdentifier(
   assets: RampableAssetRow[],
@@ -51,16 +60,33 @@ export function pickOnrampTargetIdentifier(
   const trimmed = explicit?.trim();
   if (trimmed) return trimmed;
   const fromEnv = process.env.ETHERFUSE_ONRAMP_TARGET_ASSET?.trim();
-  if (fromEnv) return fromEnv;
-  const prefs = ["MXNE", "USDC", "CETES"];
+  const prefs = ["CETES", "MXNE", "USDC"];
   for (const sym of prefs) {
     const row = assets.find(
       (a) => (a.symbol ?? "").toUpperCase() === sym.toUpperCase(),
     );
     if (row?.identifier) return row.identifier;
   }
+  if (fromEnv && assets.length > 0) {
+    const inList = assets.some(
+      (a) => (a.identifier ?? "").trim() === fromEnv,
+    );
+    if (inList) return fromEnv;
+  }
   const first = assets.find((a) => a.identifier?.length);
-  return first?.identifier ?? null;
+  if (first?.identifier) return first.identifier;
+  if (fromEnv) return fromEnv;
+  return null;
+}
+
+/** Activo CETES (CODE:ISSUER) para onramp MXN → CETES en Stellar. */
+export function pickCetesTargetIdentifier(
+  assets: RampableAssetRow[],
+): string | null {
+  const row = assets.find(
+    (a) => (a.symbol ?? "").toUpperCase() === "CETES",
+  );
+  return row?.identifier?.trim() ? row.identifier.trim() : null;
 }
 
 /**
@@ -91,10 +117,9 @@ export async function createMxOnrampQuote(params: {
       sourceAmount: params.sourceAmount,
     }),
   });
-  const { json, text } = await etherfuseReadBody<{ error?: string }>(res);
+  const { json, text } = await etherfuseReadBody(res);
   if (!res.ok) {
-    const msg =
-      json && typeof json.error === "string" ? json.error : text.slice(0, 400);
+    const msg = extractEtherfuseErrorMessage(json, text, 400);
     throw new Error(`Etherfuse /ramp/quote (${res.status}): ${msg}`);
   }
   return json;
@@ -102,32 +127,42 @@ export async function createMxOnrampQuote(params: {
 
 /**
  * POST /ramp/order (usa quote previo; en onramp devuelve CLABE de depósito)
+ * Stellar: preferir `cryptoWalletId` (UUID de GET /ramp/wallets) para evitar "Proxy account not found".
+ * @see https://docs.etherfuse.com/guides/testing-onramps
  * @see https://docs.etherfuse.com/api-reference/orders/create-a-new-order
  */
 export async function createMxOnrampOrder(params: {
   bankAccountId: string;
   quoteId: string;
-  publicKey: string;
+  /** Obligatorio si no envías cryptoWalletId */
+  publicKey?: string;
+  /** UUID del registro en /ramp/wallets — recomendado en Stellar */
+  cryptoWalletId?: string;
   orderId?: string;
   memo?: string | null;
 }): Promise<unknown> {
+  const hasPk = Boolean(params.publicKey?.trim());
+  const hasWid = Boolean(params.cryptoWalletId?.trim());
+  if (!hasPk && !hasWid) {
+    throw new Error("createMxOnrampOrder: indica publicKey o cryptoWalletId");
+  }
   const orderId = params.orderId ?? randomUUID();
   const body: Record<string, unknown> = {
     orderId,
     bankAccountId: params.bankAccountId,
     quoteId: params.quoteId,
-    publicKey: params.publicKey,
   };
+  if (hasWid) body.cryptoWalletId = params.cryptoWalletId!.trim();
+  if (hasPk) body.publicKey = params.publicKey!.trim();
   if (params.memo) body.memo = params.memo;
   const res = await etherfuseFetch("/ramp/order", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  const { json, text } = await etherfuseReadBody<{ error?: string }>(res);
+  const { json, text } = await etherfuseReadBody(res);
   if (!res.ok) {
-    const msg =
-      json && typeof json.error === "string" ? json.error : text.slice(0, 400);
+    const msg = extractEtherfuseErrorMessage(json, text, 400);
     throw new Error(`Etherfuse /ramp/order (${res.status}): ${msg}`);
   }
   return json;
