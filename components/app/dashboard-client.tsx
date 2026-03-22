@@ -60,7 +60,11 @@ function formatMXNFull(amount: number) {
   }).format(amount)
 }
 
-export default function DashboardClient() {
+export default function DashboardClient({
+  showEtherfuseRampDev = false,
+}: {
+  showEtherfuseRampDev?: boolean
+}) {
   const data = mockData
 
   return (
@@ -172,6 +176,18 @@ export default function DashboardClient() {
         </section>
       )}
 
+      {showEtherfuseRampDev && (
+        <section className="rounded-[1.25rem] border border-dashed border-amber-500/25 bg-amber-500/[0.06] p-4">
+          <p className="text-xs font-bold text-amber-200/90">Herramienta de desarrollo</p>
+          <Link
+            href="/dev/etherfuse-ramp"
+            className="mt-2 inline-block text-sm font-semibold text-foreground underline-offset-4 hover:underline"
+          >
+            Panel rampa Etherfuse (sandbox)
+          </Link>
+        </section>
+      )}
+
       {/* Verificación */}
       <section className="flex gap-3 rounded-[1.25rem] border border-amber-500/20 bg-amber-500/[0.07] p-4">
         <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-amber-200">
@@ -183,7 +199,7 @@ export default function DashboardClient() {
             Para depositar más, verifica tu identidad.
           </p>
           <Link
-            href="/verificacion"
+            href="/identidad"
             className="mt-2 inline-block text-xs font-bold text-amber-200/90 underline-offset-4 hover:underline"
           >
             Verificar ahora

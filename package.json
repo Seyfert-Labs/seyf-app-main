@@ -7,7 +7,8 @@
     "dev:webpack": "next dev --webpack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "etherfuse:verify": "node scripts/verify-etherfuse.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -41,6 +42,7 @@
     "@vercel/analytics": "1.6.1",
     "accesly": "^0.2.5",
     "autoprefixer": "^10.4.20",
+    "canonicalize": "^2.1.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "1.1.1",

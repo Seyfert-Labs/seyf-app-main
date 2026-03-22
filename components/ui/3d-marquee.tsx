@@ -18,43 +18,48 @@ interface ThreeDMarqueeProps {
 
 /** Pool amplio para repartir en 3 columnas; scroll infinito duplica cada columna en runtime. */
 export const MARQUEE_IMAGE_POOL = [
-  'https://images.unsplash.com/photo-1563013544-824ae1b704d3?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1621761191319-c6fb62004040?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1642790106117-e829e14a795f?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1618044733300-9472054094ee?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1633158829585-23ba8f7c8caf?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1553729459-2336f8d1e3c0?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1556742111-a301076d9d18?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1590283603385-17ffb3a7f0f6?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1563986768609-322da13575f3?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1553877522-43269d4ea984?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1551434678-e076c223a692?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1542744173-8e7e5348bb0c?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1520607162513-77705c0f310d?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=400&h=300&fit=crop',
-  'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=400&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1563013544-824ae1b704d3?w=400&h=300&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=400&h=300&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=400&h=300&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&h=300&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=300&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=400&h=300&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?w=400&h=300&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1621761191319-c6fb62004040?w=400&h=300&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1642790106117-e829e14a795f?w=400&h=300&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1618044733300-9472054094ee?w=400&h=300&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1633158829585-23ba8f7c8caf?w=400&h=300&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1579621970795-87facc2f976d?w=400&h=300&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1556742111-a301076d9d18?w=400&h=300&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1601597111158-2fceff292cdc?w=400&h=300&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1563986768609-322da13575f3?w=400&h=300&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=400&h=300&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=400&h=300&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1553877522-43269d4ea984?w=400&h=300&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1551434678-e076c223a692?w=400&h=300&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=400&h=300&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=400&h=300&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1642543492481-44e81e3914a7?w=400&h=300&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=400&h=300&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=400&h=300&fit=crop&q=80',
 ] as const
 
 const defaultImages: string[] = [...MARQUEE_IMAGE_POOL]
+
+/** Reparto en 3 columnas por round-robin: evita bloques largos parecidos y que un mismo src quede seguido en vertical. */
+function splitImagesIntoColumns(urls: string[], columnCount: number): string[][] {
+  const cols: string[][] = Array.from({ length: columnCount }, () => [])
+  urls.forEach((src, i) => {
+    cols[i % columnCount].push(src)
+  })
+  return cols
+}
 
 const ThreeDMarquee = ({
   images = defaultImages,
   className,
 }: ThreeDMarqueeProps) => {
-  const chunkSize = Math.ceil(images.length / 3)
-  const chunks = Array.from({ length: 3 }, (_, colIndex) => {
-    const start = colIndex * chunkSize
-    return images.slice(start, start + chunkSize)
-  })
+  const chunks = splitImagesIntoColumns(images, 3)
 
   return (
     <div
