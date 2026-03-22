@@ -191,6 +191,12 @@ export default function DashboardClient({
           >
             Panel offramp Etherfuse (sandbox)
           </Link>
+          <Link
+            href="/dev/poc-omnibus"
+            className="block text-sm font-semibold text-foreground underline-offset-4 hover:underline"
+          >
+            PoC ledger omnibus (una wallet, saldos en memoria)
+          </Link>
         </section>
       )}
 
