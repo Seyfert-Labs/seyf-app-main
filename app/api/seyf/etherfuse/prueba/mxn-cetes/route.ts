@@ -31,6 +31,11 @@ const bodySchema = z.object({
   /** Si true y entorno dev/panel, llama POST sandbox fiat_received tras crear la orden. */
   simulateFiat: z.boolean().optional(),
   /**
+   * Solo crea cotización + orden (CLABE SPEI); no simula fiat. Para mostrar recuento y confirmar con
+   * `POST .../mxn-cetes/confirm`.
+   */
+  prepareOnly: z.boolean().optional(),
+  /**
    * Por defecto false: misma prioridad que `getEtherfuseRampContext` (cookie /identidad, luego MVP en dev).
    * Pon true para ignorar la cookie y usar solo `ETHERFUSE_MVP_*` (útil si KYC/sesión web no coinciden con la API).
    */
@@ -146,9 +151,15 @@ export async function POST(req: Request) {
       );
     }
 
+    const speiRecipientDisplayName =
+      process.env.SEYF_SPEI_DISPLAY_NAME?.trim() || "Etherfuse";
+
     let simulateFiat: unknown = null;
+    const prepareOnly = parsed.data.prepareOnly === true;
     const wantSim =
-      parsed.data.simulateFiat !== false && isEtherfuseDevPanelEnabled();
+      !prepareOnly &&
+      parsed.data.simulateFiat !== false &&
+      isEtherfuseDevPanelEnabled();
     if (wantSim) {
       const fr = await etherfuseFetch("/ramp/order/fiat_received", {
         method: "POST",
@@ -183,6 +194,8 @@ export async function POST(req: Request) {
       /** Resumen para UI: hash on-chain (`confirmedTxSignature`), estado y página Etherfuse (`statusPage`). */
       orderDisplay,
       orderFetchError,
+      speiRecipientDisplayName,
+      prepareOnly,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Error en prueba MXN→CETES";
