@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Check, Copy, LogOut, UserRound } from 'lucide-react'
+import { Check, Copy, LogOut, ShieldCheck, UserRound } from 'lucide-react'
 import { useAccesly } from 'accesly'
 import { Button } from '@/components/ui/button'
 import {
@@ -160,15 +160,17 @@ export default function AppUserAccountPanel({ embedded = false }: AppUserAccount
     },
   ]
 
+  let memberSince = '—'
   if (wallet.createdAt) {
     try {
       const d = new Date(wallet.createdAt)
       if (!Number.isNaN(d.getTime())) {
+        memberSince = new Intl.DateTimeFormat('es-MX', {
+          dateStyle: 'medium',
+        }).format(d)
         rows.push({
           label: 'Cuenta desde',
-          value: new Intl.DateTimeFormat('es-MX', {
-            dateStyle: 'medium',
-          }).format(d),
+          value: memberSince,
         })
       }
     } catch {
@@ -178,20 +180,41 @@ export default function AppUserAccountPanel({ embedded = false }: AppUserAccount
 
   return (
     <section className={`overflow-hidden ${shell}`}>
-      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-xs font-black text-foreground ring-1 ring-border">
-          {(wallet.email?.split('@')[0]?.slice(0, 2) ?? wallet.stellarAddress.slice(0, 2)).toUpperCase()}
+      <div className="relative overflow-hidden border-b border-border bg-gradient-to-br from-violet-700/20 via-indigo-700/15 to-sky-700/10 px-4 py-4">
+        <div className="pointer-events-none absolute -right-12 -top-12 h-28 w-28 rounded-full bg-violet-400/20 blur-2xl" />
+        <div className="pointer-events-none absolute -bottom-12 -left-12 h-28 w-28 rounded-full bg-cyan-400/10 blur-2xl" />
+        <div className="relative flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-xs font-black text-foreground ring-1 ring-white/15">
+            {(wallet.email?.split('@')[0]?.slice(0, 2) ?? wallet.stellarAddress.slice(0, 2)).toUpperCase()}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm font-bold text-foreground">Tu perfil</h2>
+            <p className="truncate text-xs text-muted-foreground">Accesly · Stellar</p>
+          </div>
+          <p className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/25 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-violet-100/90">
+            <ShieldCheck className="size-3" />
+            Activo
+          </p>
         </div>
-        <div className="min-w-0 flex-1">
-          <h2 className="text-sm font-bold text-foreground">Tu perfil</h2>
-          <p className="truncate text-xs text-muted-foreground">Accesly · Stellar</p>
+        <div className="relative mt-3 grid grid-cols-2 gap-2">
+          <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-2">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-violet-100/80">Red</p>
+            <p className="mt-0.5 text-xs font-semibold text-white">{formatNetwork()}</p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-2">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-violet-100/80">Cuenta desde</p>
+            <p className="mt-0.5 truncate text-xs font-semibold text-white">{memberSince}</p>
+          </div>
         </div>
       </div>
 
-      <dl className="divide-y divide-border px-4">
+      <dl className="space-y-2 px-3 py-3">
         {rows.map(({ label, value, mono, copyFullText }) => (
-          <div key={label} className="grid gap-0.5 py-3 sm:grid-cols-[7.5rem_1fr] sm:items-start sm:gap-3">
-            <dt className="text-xs font-medium text-muted-foreground pt-0.5">{label}</dt>
+          <div
+            key={label}
+            className="grid gap-0.5 rounded-xl border border-border bg-secondary/35 px-3 py-2.5 sm:grid-cols-[7.5rem_1fr] sm:items-start sm:gap-3"
+          >
+            <dt className="pt-0.5 text-xs font-medium text-muted-foreground">{label}</dt>
             <dd
               className={`flex min-w-0 items-start gap-2 text-sm font-semibold text-foreground ${mono ? 'font-mono text-[13px] font-medium tracking-tight' : ''}`}
             >
@@ -222,7 +245,7 @@ export default function AppUserAccountPanel({ embedded = false }: AppUserAccount
         <Button
           type="button"
           variant="outline"
-          className="h-11 w-full gap-2 rounded-full border-destructive/35 font-bold text-destructive hover:bg-destructive/10 hover:text-destructive"
+          className="h-11 w-full gap-2 rounded-full border-destructive/35 bg-destructive/5 font-bold text-destructive hover:bg-destructive/10 hover:text-destructive"
           onClick={handleLogout}
         >
           <LogOut className="size-4 shrink-0" strokeWidth={2} />
