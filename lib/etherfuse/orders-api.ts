@@ -80,18 +80,24 @@ const CUSTOMER_ORDERS_PAGE_SIZE = 100;
 /**
  * Todas las páginas de órdenes del cliente (POST con paginación).
  * Si POST falla, hace fallback a GET (solo primera página).
+ * @param maxPages — por defecto {@link CUSTOMER_ORDERS_MAX_PAGES}; usar un valor bajo en rutas que solo necesitan un recorte reciente (p. ej. dashboard con polling).
  * @see https://docs.etherfuse.com/api-reference/customers/get-customer-orders-with-pagination
  */
 export async function fetchCustomerOrdersAllPages(
   customerId: string,
+  maxPages: number = CUSTOMER_ORDERS_MAX_PAGES,
 ): Promise<OrderRow[]> {
+  const pageLimit = Math.max(
+    1,
+    Math.min(CUSTOMER_ORDERS_MAX_PAGES, Math.floor(maxPages)),
+  );
   const path = `/ramp/customer/${encodeURIComponent(customerId)}/orders`;
   const collected: OrderRow[] = [];
   const seenIds = new Set<string>();
 
   for (
     let pageNumber = 0;
-    pageNumber < CUSTOMER_ORDERS_MAX_PAGES;
+    pageNumber < pageLimit;
     pageNumber++
   ) {
     const res = await etherfuseFetch(path, {

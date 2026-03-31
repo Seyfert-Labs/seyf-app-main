@@ -178,22 +178,36 @@ function ledgerRunToMovement(r: InvestmentRun): UserMovement {
   };
 }
 
+export type FetchUserMovementsOptions = {
+  /** Límite de páginas Etherfuse (100 órdenes/página). Por defecto todas las permitidas; el dashboard usa pocas para no saturar con polling. */
+  etherfuseMaxPages?: number;
+  /** Límite de filas ledger; por defecto 80. */
+  ledgerRunsLimit?: number;
+};
+
 /**
  * Movimientos del usuario: ledger MVP (si aplica) + órdenes GET /ramp/customer/{id}/orders (Etherfuse FX API).
  */
 export async function fetchUserMovements(
   ctx: EtherfuseRampContext | null,
+  options?: FetchUserMovementsOptions,
 ): Promise<UserMovement[]> {
+  const ledgerLimit = options?.ledgerRunsLimit ?? 80;
+  const etherfusePages = options?.etherfuseMaxPages;
+
   const out: UserMovement[] = [];
 
   if (investAllowed()) {
-    const runs = await listRuns(80);
+    const runs = await listRuns(ledgerLimit);
     out.push(...runs.map(ledgerRunToMovement));
   }
 
   if (ctx && etherfuseRampAllowed()) {
     try {
-      const rows = await fetchCustomerOrdersAllPages(ctx.customerId);
+      const rows =
+        etherfusePages != null
+          ? await fetchCustomerOrdersAllPages(ctx.customerId, etherfusePages)
+          : await fetchCustomerOrdersAllPages(ctx.customerId);
       for (const row of rows) {
         if (row && typeof row === "object") {
           const m = etherfuseRowToMovement(row as Record<string, unknown>);

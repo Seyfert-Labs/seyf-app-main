@@ -49,6 +49,9 @@ function cetesFootnote(s: DashboardCetesSaldo): string | null {
   return null;
 }
 
+/** Con polling cada pocos segundos, no paginar decenas de miles de órdenes: basta para las últimas N del preview. */
+const DASHBOARD_ETHERFUSE_ORDER_PAGES = 2;
+
 /**
  * Ensambla números en vivo: saldo CETES×MXN (Etherfuse) y, en dev o con SEYF_ALLOW_MOCK_INVEST, ledger MVP.
  */
@@ -57,7 +60,10 @@ export async function buildDashboardViewModel(): Promise<DashboardViewModel> {
   const [cetesSaldo, investRuns, movementsAll] = await Promise.all([
     fetchDashboardCetesSaldo(ctx),
     investAllowed() ? listRuns(20) : Promise.resolve([] as InvestmentRun[]),
-    fetchUserMovements(ctx),
+    fetchUserMovements(ctx, {
+      etherfuseMaxPages: DASHBOARD_ETHERFUSE_ORDER_PAGES,
+      ledgerRunsLimit: 20,
+    }),
   ]);
 
   const ledgerPrincipal = ledgerPrincipalMxn(investRuns);
