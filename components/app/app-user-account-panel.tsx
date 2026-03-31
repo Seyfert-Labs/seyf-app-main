@@ -142,8 +142,10 @@ export default function AppUserAccountPanel({ embedded = false }: AppUserAccount
     mono?: boolean
     /** Si existe, botón copiar pega este texto (dirección completa) */
     copyFullText?: string
+    /** Correos largos sin espacios: partir en cualquier carácter sin desbordar */
+    breakAnywhere?: boolean
   }[] = [
-    { label: 'Correo', value: wallet.email?.trim() || '—' },
+    { label: 'Correo', value: wallet.email?.trim() || '—', breakAnywhere: true },
     { label: 'Red', value: formatNetwork() },
     {
       label: 'Cuenta Stellar',
@@ -209,16 +211,26 @@ export default function AppUserAccountPanel({ embedded = false }: AppUserAccount
       </div>
 
       <dl className="space-y-2 px-3 py-3">
-        {rows.map(({ label, value, mono, copyFullText }) => (
+        {rows.map(({ label, value, mono, copyFullText, breakAnywhere }) => (
           <div
             key={label}
-            className="grid gap-0.5 rounded-xl border border-border bg-secondary/35 px-3 py-2.5 sm:grid-cols-[7.5rem_1fr] sm:items-start sm:gap-3"
+            className="grid min-w-0 gap-0.5 rounded-xl border border-border bg-secondary/35 px-3 py-2.5 sm:grid-cols-[7.5rem_1fr] sm:items-start sm:gap-3"
           >
             <dt className="pt-0.5 text-xs font-medium text-muted-foreground">{label}</dt>
             <dd
-              className={`flex min-w-0 items-start gap-2 text-sm font-semibold text-foreground ${mono ? 'font-mono text-[13px] font-medium tracking-tight' : ''}`}
+              className={`flex min-w-0 w-full max-w-full items-start gap-2 text-sm font-semibold text-foreground ${mono ? 'font-mono text-[13px] font-medium tracking-tight' : ''}`}
             >
-              <span className="min-w-0 flex-1 break-all sm:break-normal">{value}</span>
+              <span
+                className={`min-w-0 flex-1 whitespace-normal ${
+                  breakAnywhere
+                    ? 'break-all [overflow-wrap:anywhere]'
+                    : mono
+                      ? 'break-all sm:break-normal'
+                      : 'break-words sm:break-normal'
+                }`}
+              >
+                {value}
+              </span>
               {copyFullText ? (
                 <Button
                   type="button"
