@@ -38,7 +38,7 @@ export default function AppTopBar() {
             </button>
           </SheetTrigger>
           <SheetContent side="right" className="flex flex-col gap-0 overflow-hidden p-0">
-            <SheetHeader className="shrink-0 space-y-1 border-b border-border px-4 py-4 pr-12 text-left">
+            <SheetHeader className="shrink-0 space-y-1 border-b border-border bg-gradient-to-br from-violet-700/15 via-indigo-700/10 to-background px-4 py-4 pr-12 text-left">
               <SheetTitle className="text-lg font-bold tracking-tight">Tu cuenta</SheetTitle>
               <p className="text-xs text-muted-foreground">Perfil y sesión Accesly</p>
             </SheetHeader>
@@ -47,7 +47,7 @@ export default function AppTopBar() {
               <SheetClose asChild>
                 <Link
                   href="/dashboard"
-                  className="mb-4 flex h-11 w-full items-center justify-center rounded-full bg-secondary text-sm font-semibold text-foreground ring-1 ring-border transition hover:bg-secondary/80"
+                  className="mb-4 flex h-11 w-full items-center justify-center rounded-full bg-secondary/70 text-sm font-semibold text-foreground ring-1 ring-border transition hover:bg-secondary"
                 >
                   Inicio
                 </Link>
