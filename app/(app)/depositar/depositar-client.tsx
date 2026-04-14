@@ -7,6 +7,7 @@ import { AppBackLink } from '@/components/app/app-back-link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { getSeyfErrorDisplayMessage } from '@/lib/seyf/read-client-api-error'
 
 const MIN_MXN = 500
 
@@ -70,7 +71,7 @@ export default function DepositarClient() {
       const data = (await res.json()) as { error?: string; walletMasked?: string; bankAccountId?: string }
       if (cancelled) return
       if (!res.ok) {
-        setAccountError(typeof data.error === 'string' ? data.error : 'No se pudo cargar la cuenta Etherfuse.')
+        setAccountError(getSeyfErrorDisplayMessage(data, 'No se pudo cargar la cuenta para depósito.'))
         setAccountPreview(null)
         return
       }
@@ -109,14 +110,8 @@ export default function DepositarClient() {
         })
         const data = (await res.json()) as MvpOnrampResponse
 
-        if (res.status === 403) {
-          setError(
-            'La rampa no está habilitada en producción (SEYF_ALLOW_ETHERFUSE_RAMP).',
-          )
-          return
-        }
         if (!res.ok) {
-          setError(typeof data.error === 'string' ? data.error : 'Error al generar depósito.')
+          setError(getSeyfErrorDisplayMessage(data, 'No se pudo generar la instrucción de depósito.'))
           return
         }
 

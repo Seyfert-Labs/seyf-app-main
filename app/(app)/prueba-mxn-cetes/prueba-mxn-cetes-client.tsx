@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { AppPageBody } from '@/components/app/app-page-body'
 import { AppBackLink } from '@/components/app/app-back-link'
 import { Button } from '@/components/ui/button'
+import { getSeyfErrorDisplayMessage } from '@/lib/seyf/read-client-api-error'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
@@ -40,9 +41,9 @@ export default function PruebaMxnCetesClient() {
 
   const pollOrder = useCallback(async (oid: string) => {
     const res = await fetch(`/api/seyf/etherfuse/prueba/order/${encodeURIComponent(oid)}`)
-    const data = (await res.json()) as { order?: unknown; error?: string }
+    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>
     if (!res.ok) {
-      setPollError(typeof data.error === 'string' ? data.error : 'Error al leer orden')
+      setPollError(getSeyfErrorDisplayMessage(data, 'No se pudo leer el estado de la orden.'))
       return null
     }
     const o = data.order
@@ -92,9 +93,9 @@ export default function PruebaMxnCetesClient() {
           simulateFiat,
         }),
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setError(typeof data.error === 'string' ? data.error : 'Error')
+        setError(getSeyfErrorDisplayMessage(data, 'No se pudo ejecutar la prueba.'))
         return
       }
       setRunResult(data)

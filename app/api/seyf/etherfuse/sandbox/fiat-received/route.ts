@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { etherfuseFetch, etherfuseReadBody } from '@/lib/etherfuse/client'
+import {
+  seyfApiError,
+  SEYF_VALIDATION_MESSAGE_ES,
+} from '@/lib/seyf/api-error'
 import { isEtherfuseDevPanelEnabled } from '@/lib/seyf/etherfuse-dev-panel'
 
 const bodySchema = z.object({
@@ -14,19 +18,19 @@ const bodySchema = z.object({
  */
 export async function POST(req: Request) {
   if (!isEtherfuseDevPanelEnabled()) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    return seyfApiError(404, 'not_found')
   }
 
   let json: unknown
   try {
     json = await req.json()
   } catch {
-    return NextResponse.json({ error: 'JSON inválido' }, { status: 400 })
+    return seyfApiError(400, 'bad_json')
   }
 
   const parsed = bodySchema.safeParse(json)
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+    return seyfApiError(400, 'validation_error', { message_es: SEYF_VALIDATION_MESSAGE_ES })
   }
 
   const res = await etherfuseFetch('/ramp/order/fiat_received', {
@@ -36,11 +40,13 @@ export async function POST(req: Request) {
   })
   const { json: out, text } = await etherfuseReadBody(res)
   if (!res.ok) {
-    const msg = text.slice(0, 500)
-    return NextResponse.json(
-      { error: msg, detail: out },
-      { status: res.status >= 400 && res.status < 600 ? res.status : 502 },
-    )
+    console.error('[sandbox/fiat-received]', res.status, text.slice(0, 800), out)
+    const st = res.status >= 400 && res.status < 600 ? res.status : 502
+    if (st === 404) return seyfApiError(404, 'not_found')
+    if (st >= 500) {
+      return seyfApiError(502, 'provider_unavailable', { retryable: true })
+    }
+    return seyfApiError(400, 'validation_error', { message_es: SEYF_VALIDATION_MESSAGE_ES })
   }
   return NextResponse.json({ ok: true as const, result: out })
 }

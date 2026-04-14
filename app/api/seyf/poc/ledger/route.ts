@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import {
+  seyfApiError,
+  seyfErrorFromUnknown,
+  SEYF_VALIDATION_MESSAGE_ES,
+} from "@/lib/seyf/api-error";
 import { isEtherfuseDevPanelEnabled } from "@/lib/seyf/etherfuse-dev-panel";
 import {
   getPocLedgerSnapshot,
@@ -10,7 +15,7 @@ import { POC_USER_COOKIE, getOrCreatePocUserId } from "@/lib/seyf/poc-user-cooki
 
 function guardPoc(): NextResponse | null {
   if (!isEtherfuseDevPanelEnabled()) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return seyfApiError(404, "not_found");
   }
   return null;
 }
@@ -66,12 +71,12 @@ export async function POST(req: Request) {
   try {
     json = await req.json();
   } catch {
-    return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
+    return seyfApiError(400, "bad_json");
   }
 
   const parsed = postSchema.safeParse(json);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return seyfApiError(400, "validation_error", { message_es: SEYF_VALIDATION_MESSAGE_ES });
   }
 
   const memo =
@@ -92,7 +97,6 @@ export async function POST(req: Request) {
     }
     return res;
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Error";
-    return NextResponse.json({ error: message }, { status: 400 });
+    return seyfErrorFromUnknown(e, 400);
   }
 }

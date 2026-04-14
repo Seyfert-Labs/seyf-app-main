@@ -14,6 +14,11 @@ import {
   type MvpPartnerRampIdentity,
   resolveMvpPartnerRampIdentity,
 } from "@/lib/etherfuse/partner-accounts";
+import {
+  seyfApiError,
+  seyfErrorFromUnknown,
+  SEYF_VALIDATION_MESSAGE_ES,
+} from "@/lib/seyf/api-error";
 import { getEtherfuseRampContext } from "@/lib/seyf/etherfuse-ramp-context";
 import { isEtherfuseDevPanelEnabled } from "@/lib/seyf/etherfuse-dev-panel";
 import { guardEtherfuseRampRoutes } from "@/lib/seyf/etherfuse-ramp-guard";
@@ -50,22 +55,21 @@ export async function POST(req: Request) {
   try {
     json = await req.json();
   } catch {
-    return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
+    return seyfApiError(400, "bad_json");
   }
 
   const parsed = bodySchema.safeParse(json);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return seyfApiError(400, "validation_error", { message_es: SEYF_VALIDATION_MESSAGE_ES });
   }
 
   const mxn = Number.parseFloat(
     parsed.data.sourceAmount.replace(",", "."),
   );
   if (!Number.isFinite(mxn) || mxn < 500) {
-    return NextResponse.json(
-      { error: "Monto inválido o mínimo 500 MXN." },
-      { status: 400 },
-    );
+    return seyfApiError(400, "validation_error", {
+      message_es: "El monto no es válido o es menor al mínimo permitido (500 MXN).",
+    });
   }
 
   try {
@@ -91,12 +95,8 @@ export async function POST(req: Request) {
         }
       }
     } catch (e) {
-      const message =
-        e instanceof Error ? e.message : "No se pudo resolver identidad rampa";
-      return NextResponse.json(
-        { error: message, step: "identity" as const },
-        { status: 502 },
-      );
+      console.error("[mxn-cetes] identity", e);
+      return seyfErrorFromUnknown(e);
     }
 
     let assets: Awaited<
@@ -108,12 +108,8 @@ export async function POST(req: Request) {
       });
       assets = row.assets;
     } catch (e) {
-      const message =
-        e instanceof Error ? e.message : "Error en GET /ramp/assets";
-      return NextResponse.json(
-        { error: message, step: "ramp_assets" as const },
-        { status: 502 },
-      );
+      console.error("[mxn-cetes] ramp_assets", e);
+      return seyfErrorFromUnknown(e);
     }
     let cetesId = pickCetesTargetIdentifier(assets);
     if (!cetesId) {
@@ -124,13 +120,10 @@ export async function POST(req: Request) {
       }
     }
     if (!cetesId) {
-      return NextResponse.json(
-        {
-          error:
-            "No hay CETES usable: hace falta fila CETES en GET /ramp/assets (trust line en Stellar testnet al issuer que devuelve Etherfuse). No uses un issuer distinto en .env: en sandbox provoca NonStableAsset.",
-        },
-        { status: 422 },
-      );
+      return seyfApiError(422, "validation_error", {
+        message_es:
+          "No hay un activo CETES disponible para esta cuenta en sandbox. Revisa la línea de confianza en Stellar y la configuración de activos rampables.",
+      });
     }
 
     let ramp: Awaited<ReturnType<typeof executeMvpPartnerOnramp>>;
@@ -143,12 +136,8 @@ export async function POST(req: Request) {
         identity,
       });
     } catch (e) {
-      const message =
-        e instanceof Error ? e.message : "Error en cotización u orden onramp";
-      return NextResponse.json(
-        { error: message, step: "quote_or_order" as const },
-        { status: 502 },
-      );
+      console.error("[mxn-cetes] quote_or_order", e);
+      return seyfErrorFromUnknown(e);
     }
 
     const speiRecipientDisplayName =
@@ -167,17 +156,21 @@ export async function POST(req: Request) {
         body: JSON.stringify({ orderId: ramp.deposit.orderId }),
       });
       const { json: simJson, text } = await etherfuseReadBody(fr);
+      if (!fr.ok) {
+        console.error("[mxn-cetes] fiat_received", fr.status, text.slice(0, 800));
+      }
       simulateFiat = fr.ok
         ? { ok: true as const, result: simJson }
-        : { ok: false as const, status: fr.status, error: text.slice(0, 500) };
+        : { ok: false as const, status: fr.status };
     }
 
     let orderSnapshot: unknown = null;
-    let orderFetchError: string | null = null;
+    let orderFetchFailed = false;
     try {
       orderSnapshot = await fetchOrderDetailsWithRetry(ramp.deposit.orderId);
     } catch (e) {
-      orderFetchError = e instanceof Error ? e.message : String(e);
+      orderFetchFailed = true;
+      console.warn("[mxn-cetes] order fetch", e);
     }
 
     const orderDisplay = orderSnapshot
@@ -193,16 +186,12 @@ export async function POST(req: Request) {
       order: orderSnapshot,
       /** Resumen para UI: hash on-chain (`confirmedTxSignature`), estado y página Etherfuse (`statusPage`). */
       orderDisplay,
-      orderFetchError,
+      orderFetchFailed,
       speiRecipientDisplayName,
       prepareOnly,
     });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Error en prueba MXN→CETES";
-    console.error("[mxn-cetes]", message);
-    return NextResponse.json(
-      { error: message, step: "unknown" as const },
-      { status: 502 },
-    );
+    console.error("[mxn-cetes]", e);
+    return seyfErrorFromUnknown(e);
   }
 }

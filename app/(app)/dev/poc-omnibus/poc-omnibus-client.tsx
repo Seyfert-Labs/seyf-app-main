@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { getSeyfErrorDisplayMessage } from '@/lib/seyf/read-client-api-error'
 import Link from 'next/link'
 import { AppBackLink } from '@/components/app/app-back-link'
 import { AppPageBody } from '@/components/app/app-page-body'
@@ -33,7 +34,7 @@ export default function PocOmnibusClient() {
     const res = await fetch('/api/seyf/poc/ledger')
     const j = await res.json().catch(() => ({}))
     if (!res.ok) {
-      setErr(typeof j.error === 'string' ? j.error : res.statusText)
+      setErr(getSeyfErrorDisplayMessage(j, 'No se pudo cargar el libro PoC.'))
       return
     }
     setData(j as LedgerResponse)
@@ -63,7 +64,7 @@ export default function PocOmnibusClient() {
       })
       const j = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setErr(typeof j.error === 'string' ? j.error : res.statusText)
+        setErr(getSeyfErrorDisplayMessage(j, 'No se pudo registrar el movimiento.'))
         return
       }
       setData({

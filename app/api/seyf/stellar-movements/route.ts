@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { seyfApiError, seyfErrorFromUnknown } from '@/lib/seyf/api-error'
 import {
   fetchChainMovements,
   type HorizonNetwork,
@@ -31,10 +32,14 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const account = (searchParams.get('account') ?? '').trim()
   if (!account) {
-    return NextResponse.json({ error: 'Falta account' }, { status: 400 })
+    return seyfApiError(400, 'validation_error', {
+      message_es: 'Falta el parámetro de cuenta pública.',
+    })
   }
   if (!looksLikeStellarAccount(account)) {
-    return NextResponse.json({ error: 'Cuenta Stellar inválida' }, { status: 400 })
+    return seyfApiError(400, 'validation_error', {
+      message_es: 'La cuenta pública no tiene un formato válido.',
+    })
   }
 
   const limitPerNet = 30
@@ -57,7 +62,6 @@ export async function GET(req: Request) {
       headers: { 'Cache-Control': 'no-store, max-age=0' },
     })
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Horizon error'
-    return NextResponse.json({ error: msg }, { status: 502 })
+    return seyfErrorFromUnknown(e)
   }
 }

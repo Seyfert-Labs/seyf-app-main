@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { executeMvpPartnerOnramp } from "@/lib/etherfuse/mvp-onramp";
+import {
+  seyfApiError,
+  seyfErrorFromUnknown,
+  SEYF_VALIDATION_MESSAGE_ES,
+} from "@/lib/seyf/api-error";
 import { guardEtherfuseRampRoutes } from "@/lib/seyf/etherfuse-ramp-guard";
 
 const bodySchema = z.object({
@@ -22,20 +27,19 @@ export async function POST(req: Request) {
   try {
     json = await req.json();
   } catch {
-    return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
+    return seyfApiError(400, "bad_json");
   }
 
   const parsed = bodySchema.safeParse(json);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return seyfApiError(400, "validation_error", { message_es: SEYF_VALIDATION_MESSAGE_ES });
   }
 
   const mxn = Number.parseFloat(parsed.data.sourceAmount.replace(",", "."));
   if (!Number.isFinite(mxn) || mxn < 500) {
-    return NextResponse.json(
-      { error: "Monto inválido o mínimo 500 MXN." },
-      { status: 400 },
-    );
+    return seyfApiError(400, "validation_error", {
+      message_es: "El monto no es válido o es menor al mínimo permitido (500 MXN).",
+    });
   }
 
   try {
@@ -46,7 +50,6 @@ export async function POST(req: Request) {
     });
     return NextResponse.json(result);
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Error en onramp MVP";
-    return NextResponse.json({ error: message }, { status: 502 });
+    return seyfErrorFromUnknown(e);
   }
 }

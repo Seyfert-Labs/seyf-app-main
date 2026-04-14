@@ -32,7 +32,7 @@ export function DetailRow({
 /** Resumen de orden (API) + enlace a comprobante público si hay firma. */
 export function OrderTransactionDetailCard({ payloadJson }: { payloadJson: string }) {
   let orderDisplay: RampOrderTransactionDetails | null = null
-  let orderFetchError: string | null = null
+  let orderFetchFailed = false
   let orderRaw: unknown = null
   let pollAttempts: number | null = null
   let hasSandboxFiat = false
@@ -41,6 +41,8 @@ export function OrderTransactionDetailCard({ payloadJson }: { payloadJson: strin
   try {
     const root = JSON.parse(payloadJson) as {
       orderDisplay?: RampOrderTransactionDetails | null
+      orderFetchFailed?: boolean
+      /** @deprecated usar orderFetchFailed */
       orderFetchError?: string | null
       order?: unknown
       orderPolled?: unknown
@@ -54,8 +56,9 @@ export function OrderTransactionDetailCard({ payloadJson }: { payloadJson: strin
     hasOfframpTrack = root.offrampTrack === true
     hasSandboxFiat =
       root.sandboxFiatReceived !== undefined && root.sandboxFiatReceived !== null
-    orderFetchError =
-      typeof root.orderFetchError === 'string' ? root.orderFetchError : null
+    orderFetchFailed =
+      root.orderFetchFailed === true ||
+      (typeof root.orderFetchError === 'string' && root.orderFetchError.length > 0)
     orderRaw = root.orderPolled ?? root.orderAfterPoll ?? root.order ?? null
     pollAttempts = typeof root.pollAttempts === 'number' ? root.pollAttempts : null
     orderDisplay =
@@ -66,7 +69,7 @@ export function OrderTransactionDetailCard({ payloadJson }: { payloadJson: strin
   }
   if (
     !orderDisplay?.orderId &&
-    !orderFetchError &&
+    !orderFetchFailed &&
     !orderRaw &&
     !hasSandboxFiat &&
     !looksMxCetes &&
@@ -177,9 +180,9 @@ export function OrderTransactionDetailCard({ payloadJson }: { payloadJson: strin
           El comprobante público aparece cuando la operación avanza (pago o autorización completados).
         </p>
       )}
-      {orderFetchError ? (
+      {orderFetchFailed ? (
         <p className="mt-2 text-xs text-amber-600">
-          No se pudo actualizar el detalle: {orderFetchError}
+          No se pudo actualizar el detalle de la orden. Intenta de nuevo en unos segundos.
         </p>
       ) : null}
     </div>

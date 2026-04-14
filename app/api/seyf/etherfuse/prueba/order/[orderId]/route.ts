@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchOrderDetails } from "@/lib/etherfuse/orders-api";
+import { seyfApiError, seyfErrorFromUnknown } from "@/lib/seyf/api-error";
 import { guardEtherfuseRampRoutes } from "@/lib/seyf/etherfuse-ramp-guard";
 
 /**
@@ -15,14 +16,15 @@ export async function GET(
 
   const { orderId } = await ctx.params;
   if (!orderId || !/^[0-9a-f-]{36}$/i.test(orderId)) {
-    return NextResponse.json({ error: "orderId inválido" }, { status: 400 });
+    return seyfApiError(400, "validation_error", {
+      message_es: "El identificador de orden no es válido.",
+    });
   }
 
   try {
     const order = await fetchOrderDetails(orderId);
     return NextResponse.json({ order });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Error";
-    return NextResponse.json({ error: message }, { status: 502 });
+    return seyfErrorFromUnknown(e);
   }
 }

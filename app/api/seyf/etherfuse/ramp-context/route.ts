@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { resolveMvpPartnerCryptoWalletId } from "@/lib/etherfuse/partner-accounts";
+import {
+  SEYF_RAMP_UNAUTHORIZED_MESSAGE_ES,
+  seyfApiError,
+} from "@/lib/seyf/api-error";
 import { getEtherfuseRampContext } from "@/lib/seyf/etherfuse-ramp-context";
 import { guardEtherfuseRampRoutes } from "@/lib/seyf/etherfuse-ramp-guard";
 
@@ -14,21 +18,18 @@ export async function GET() {
 
   const ctx = await getEtherfuseRampContext();
   if (!ctx) {
-    return NextResponse.json(
-      {
-        error:
-          "Sin contexto rampa: cookie /identidad o (solo dev) ETHERFUSE_MVP_* en .env.local.",
-      },
-      { status: 401 },
-    );
+    return seyfApiError(401, "unauthorized", { message_es: SEYF_RAMP_UNAUTHORIZED_MESSAGE_ES });
   }
 
   let cryptoWalletId: string | null = null;
-  let cryptoWalletError: string | null = null;
+  let cryptoWalletResolveFailed = false;
   try {
     cryptoWalletId = await resolveMvpPartnerCryptoWalletId(ctx.publicKey);
   } catch (e) {
-    cryptoWalletError = e instanceof Error ? e.message : String(e);
+    cryptoWalletResolveFailed = true;
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[ramp-context] cryptoWalletId resolve failed", e);
+    }
   }
 
   return NextResponse.json({
@@ -38,6 +39,6 @@ export async function GET() {
     source: ctx.source,
     cryptoWalletId,
     cryptoWalletResolved: Boolean(cryptoWalletId),
-    cryptoWalletError,
+    cryptoWalletResolveFailed,
   });
 }

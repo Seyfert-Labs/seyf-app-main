@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { seyfApiError, seyfInternalError } from '@/lib/seyf/api-error'
 import { getLedgerMeta, listRuns } from '@/lib/seyf/investment-mvp'
 
 /**
@@ -7,20 +8,26 @@ import { getLedgerMeta, listRuns } from '@/lib/seyf/investment-mvp'
  */
 export async function GET() {
   if (process.env.NODE_ENV === 'production' && process.env.SEYF_ALLOW_MOCK_INVEST !== 'true') {
-    return NextResponse.json(
-      { error: 'Mock invest disabled in production.' },
-      { status: 403 },
-    )
+    return seyfApiError(403, 'forbidden', {
+      message_es: 'El resumen de inversión simulada no está disponible en producción.',
+    })
   }
 
-  const [meta, runs] = await Promise.all([getLedgerMeta(), listRuns(20)])
-  const principalMxn = runs.filter((r) => r.status === 'completed').reduce((s, r) => s + r.amountMxn, 0)
-  const lastRate = runs[0]?.rateSnapshotAnnualPercent ?? null
+  try {
+    const [meta, runs] = await Promise.all([getLedgerMeta(), listRuns(20)])
+    const principalMxn = runs
+      .filter((r) => r.status === 'completed')
+      .reduce((s, r) => s + r.amountMxn, 0)
+    const lastRate = runs[0]?.rateSnapshotAnnualPercent ?? null
 
-  return NextResponse.json({
-    activeCycleId: meta.activeCycleId,
-    principalMxn,
-    lastReferenceAnnualRatePercent: lastRate,
-    recentRuns: runs,
-  })
+    return NextResponse.json({
+      activeCycleId: meta.activeCycleId,
+      principalMxn,
+      lastReferenceAnnualRatePercent: lastRate,
+      recentRuns: runs,
+    })
+  } catch (e) {
+    console.error('[api/seyf/invest/summary]', e)
+    return seyfInternalError()
+  }
 }

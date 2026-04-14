@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
+import { seyfErrorFromUnknown } from "@/lib/seyf/api-error";
 import {
   fetchEtherfuseStablebonds,
   pickCetesStablebond,
 } from "@/lib/etherfuse/stablebonds-lookup";
 
 export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 /**
  * GET /api/seyf/etherfuse/lookup/stablebonds
@@ -30,8 +32,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json(data);
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Error stablebonds";
-    console.error("[lookup/stablebonds]", message);
-    return NextResponse.json({ error: message }, { status: 502 });
+    console.error("[lookup/stablebonds]", e);
+    return seyfErrorFromUnknown(e);
   }
 }

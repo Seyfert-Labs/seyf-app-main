@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import { seyfApiError, SEYF_VALIDATION_MESSAGE_ES } from '@/lib/seyf/api-error'
 import { runMockAutoInvest } from '@/lib/seyf/investment-mvp'
 
 const bodySchema = z.object({
@@ -15,22 +16,21 @@ const bodySchema = z.object({
  */
 export async function POST(req: Request) {
   if (process.env.NODE_ENV === 'production' && process.env.SEYF_ALLOW_MOCK_INVEST !== 'true') {
-    return NextResponse.json(
-      { error: 'Mock invest disabled in production. Set SEYF_ALLOW_MOCK_INVEST=true or use real pipeline.' },
-      { status: 403 },
-    )
+    return seyfApiError(403, 'forbidden', {
+      message_es: 'Esta simulación de inversión no está habilitada en producción.',
+    })
   }
 
   let json: unknown
   try {
     json = await req.json()
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+    return seyfApiError(400, 'bad_json')
   }
 
   const parsed = bodySchema.safeParse(json)
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+    return seyfApiError(400, 'validation_error', { message_es: SEYF_VALIDATION_MESSAGE_ES })
   }
 
   const run = await runMockAutoInvest(parsed.data)

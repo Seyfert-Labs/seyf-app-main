@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import type { UserMovement } from '@/lib/seyf/user-movements-types'
 import { formatMovementFechaHora } from '@/lib/seyf/user-movements-types'
 import { stellarTxExplorerUrl } from '@/lib/etherfuse/stellar-tx-url'
+import { getSeyfErrorDisplayMessage } from '@/lib/seyf/read-client-api-error'
 
 function txSigFromOrderPayload(data: unknown): string | null {
   if (!data || typeof data !== 'object') return null
@@ -61,17 +62,20 @@ export function MovementDetailSheet({
       .then(async (r) => {
         const data = await r.json().catch(() => ({}))
         if (!r.ok) {
-          throw new Error(typeof data.error === 'string' ? data.error : 'No se pudo cargar el comprobante')
+          if (!cancelled) {
+            setTxError(getSeyfErrorDisplayMessage(data, 'No se pudo cargar el comprobante.'))
+          }
+          return null
         }
         return data
       })
       .then((data) => {
-        if (cancelled) return
+        if (cancelled || !data) return
         const sig = txSigFromOrderPayload(data)
         if (sig) setResolvedSig(sig)
       })
-      .catch((e) => {
-        if (!cancelled) setTxError(e instanceof Error ? e.message : 'Error')
+      .catch(() => {
+        if (!cancelled) setTxError('No se pudo cargar el comprobante.')
       })
       .finally(() => {
         if (!cancelled) setTxLoading(false)

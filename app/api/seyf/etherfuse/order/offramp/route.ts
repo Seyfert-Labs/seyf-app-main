@@ -3,6 +3,12 @@ import { z } from "zod";
 import { extractOrderIdFromCreateOrderResponse } from "@/lib/etherfuse/order-create-response";
 import { resolveMvpPartnerCryptoWalletId } from "@/lib/etherfuse/partner-accounts";
 import { createMxOfframpOrder } from "@/lib/etherfuse/ramp-api";
+import {
+  SEYF_RAMP_UNAUTHORIZED_MESSAGE_ES,
+  seyfApiError,
+  seyfErrorFromUnknown,
+  SEYF_VALIDATION_MESSAGE_ES,
+} from "@/lib/seyf/api-error";
 import { getEtherfuseRampContext } from "@/lib/seyf/etherfuse-ramp-context";
 import { guardEtherfuseRampRoutes } from "@/lib/seyf/etherfuse-ramp-guard";
 
@@ -22,25 +28,19 @@ export async function POST(req: Request) {
 
   const ctx = await getEtherfuseRampContext();
   if (!ctx) {
-    return NextResponse.json(
-      {
-        error:
-          "Sin contexto rampa: cookie /identidad o (solo dev) ETHERFUSE_MVP_* en .env.local.",
-      },
-      { status: 401 },
-    );
+    return seyfApiError(401, "unauthorized", { message_es: SEYF_RAMP_UNAUTHORIZED_MESSAGE_ES });
   }
 
   let json: unknown;
   try {
     json = await req.json();
   } catch {
-    return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
+    return seyfApiError(400, "bad_json");
   }
 
   const parsed = bodySchema.safeParse(json);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return seyfApiError(400, "validation_error", { message_es: SEYF_VALIDATION_MESSAGE_ES });
   }
 
   try {
@@ -65,12 +65,16 @@ export async function POST(req: Request) {
       contextSource: ctx.source,
     });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Error al crear orden offramp";
+    const message = e instanceof Error ? e.message : "";
     const conflict =
       message.includes("409") || message.toLowerCase().includes("pending");
-    return NextResponse.json(
-      { error: message },
-      { status: conflict ? 409 : 502 },
-    );
+    if (conflict) {
+      return seyfApiError(409, "conflict", {
+        message_es:
+          "Ya hay una operación pendiente con estos datos. Espera un momento o revisa el estado en Etherfuse.",
+        retryable: false,
+      });
+    }
+    return seyfErrorFromUnknown(e);
   }
 }

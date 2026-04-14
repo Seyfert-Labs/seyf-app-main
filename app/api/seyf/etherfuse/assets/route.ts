@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import { fetchRampableAssetsForWallet } from "@/lib/etherfuse/ramp-api";
+import {
+  SEYF_RAMP_UNAUTHORIZED_MESSAGE_ES,
+  seyfApiError,
+  seyfErrorFromUnknown,
+} from "@/lib/seyf/api-error";
 import { getEtherfuseRampContext } from "@/lib/seyf/etherfuse-ramp-context";
 import { guardEtherfuseRampRoutes } from "@/lib/seyf/etherfuse-ramp-guard";
 
@@ -13,13 +18,7 @@ export async function GET() {
 
   const ctx = await getEtherfuseRampContext();
   if (!ctx) {
-    return NextResponse.json(
-      {
-        error:
-          "Sin contexto rampa: cookie /identidad o (solo dev) ETHERFUSE_MVP_* en .env.local.",
-      },
-      { status: 401 },
-    );
+    return seyfApiError(401, "unauthorized", { message_es: SEYF_RAMP_UNAUTHORIZED_MESSAGE_ES });
   }
 
   try {
@@ -28,7 +27,6 @@ export async function GET() {
     });
     return NextResponse.json({ assets, contextSource: ctx.source });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Error al listar activos";
-    return NextResponse.json({ error: message }, { status: 502 });
+    return seyfErrorFromUnknown(e);
   }
 }

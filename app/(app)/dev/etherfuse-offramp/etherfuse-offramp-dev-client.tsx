@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useMemo, useState } from 'react'
+import { getSeyfErrorDisplayMessage } from '@/lib/seyf/read-client-api-error'
 import { AppBackLink } from '@/components/app/app-back-link'
 import { AppPageBody } from '@/components/app/app-page-body'
 import { OfframpActionCard } from '@/components/app/dev/offramp-action-card'
@@ -53,11 +54,7 @@ export default function EtherfuseOfframpDevClient() {
     })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
-      const msg =
-        typeof data.error === 'string'
-          ? data.error
-          : `${res.status} ${res.statusText}${Object.keys(data).length ? ` — ${JSON.stringify(data)}` : ''}`
-      throw new Error(msg)
+      throw new Error(getSeyfErrorDisplayMessage(data, 'No se pudo obtener la cotización de retiro.'))
     }
     return JSON.stringify(data, null, 2)
   }, [sourceAmountTokens, sourceAssetOverride])
@@ -85,7 +82,7 @@ export default function EtherfuseOfframpDevClient() {
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        throw new Error(typeof data.error === 'string' ? data.error : res.statusText)
+        throw new Error(getSeyfErrorDisplayMessage(data, 'No se pudo crear la orden de retiro.'))
       }
       return JSON.stringify(data, null, 2)
     },

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { getSeyfErrorDisplayMessage } from '@/lib/seyf/read-client-api-error'
 
 type RampContextPayload = {
   publicKey: string
@@ -10,7 +11,7 @@ type RampContextPayload = {
   source: 'cookie' | 'mvp_env'
   cryptoWalletId: string | null
   cryptoWalletResolved: boolean
-  cryptoWalletError: string | null
+  cryptoWalletResolveFailed?: boolean
 }
 
 /**
@@ -30,9 +31,9 @@ export function EtherfuseRampWalletBanner({
     setLoading(true)
     fetch('/api/seyf/etherfuse/ramp-context')
       .then(async (r) => {
-        const j = (await r.json()) as { error?: string } & Partial<RampContextPayload>
+        const j = (await r.json().catch(() => ({}))) as Partial<RampContextPayload> & Record<string, unknown>
         if (!r.ok) {
-          throw new Error(typeof j.error === 'string' ? j.error : r.statusText)
+          throw new Error(getSeyfErrorDisplayMessage(j, 'No se pudo cargar el contexto de rampa.'))
         }
         if (!cancelled) setData(j as RampContextPayload)
       })
@@ -118,8 +119,11 @@ export function EtherfuseRampWalletBanner({
           ) : (
             <span className="text-amber-600">
               pendiente — puede fallar el paso de autorización.{' '}
-              {data.cryptoWalletError ? (
-                <span className="block mt-1 text-[10px] opacity-90">{data.cryptoWalletError}</span>
+              {data.cryptoWalletResolveFailed ? (
+                <span className="block mt-1 text-[10px] opacity-90">
+                  No pudimos obtener el ID de wallet en Etherfuse. Comprueba que la clave esté registrada en el
+                  portal de prueba.
+                </span>
               ) : null}
             </span>
           )}

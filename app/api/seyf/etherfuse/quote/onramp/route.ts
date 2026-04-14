@@ -5,6 +5,12 @@ import {
   fetchRampableAssetsForWallet,
   pickOnrampTargetIdentifier,
 } from "@/lib/etherfuse/ramp-api";
+import {
+  SEYF_RAMP_UNAUTHORIZED_MESSAGE_ES,
+  seyfApiError,
+  seyfErrorFromUnknown,
+  SEYF_VALIDATION_MESSAGE_ES,
+} from "@/lib/seyf/api-error";
 import { getEtherfuseRampContext } from "@/lib/seyf/etherfuse-ramp-context";
 import { guardEtherfuseRampRoutes } from "@/lib/seyf/etherfuse-ramp-guard";
 
@@ -23,25 +29,19 @@ export async function POST(req: Request) {
 
   const ctx = await getEtherfuseRampContext();
   if (!ctx) {
-    return NextResponse.json(
-      {
-        error:
-          "Sin contexto rampa: cookie /identidad o (solo dev) variables ETHERFUSE_MVP_* en .env.local.",
-      },
-      { status: 401 },
-    );
+    return seyfApiError(401, "unauthorized", { message_es: SEYF_RAMP_UNAUTHORIZED_MESSAGE_ES });
   }
 
   let json: unknown;
   try {
     json = await req.json();
   } catch {
-    return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
+    return seyfApiError(400, "bad_json");
   }
 
   const parsed = bodySchema.safeParse(json);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return seyfApiError(400, "validation_error", { message_es: SEYF_VALIDATION_MESSAGE_ES });
   }
 
   try {
@@ -53,13 +53,10 @@ export async function POST(req: Request) {
       parsed.data.targetAsset ?? null,
     );
     if (!target) {
-      return NextResponse.json(
-        {
-          error:
-            "No hay activo destino. Define ETHERFUSE_ONRAMP_TARGET_ASSET (CODE:ISSUER) o pasa targetAsset en el body.",
-        },
-        { status: 422 },
-      );
+      return seyfApiError(422, "validation_error", {
+        message_es:
+          "No hay un activo destino configurado para esta cotización. Revisa la configuración o elige otro activo.",
+      });
     }
 
     const quote = await createMxOnrampQuote({
@@ -73,8 +70,7 @@ export async function POST(req: Request) {
       contextSource: ctx.source,
     });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Error al cotizar";
-    console.error("[quote/onramp]", message);
-    return NextResponse.json({ error: message }, { status: 502 });
+    console.error("[quote/onramp]", e);
+    return seyfErrorFromUnknown(e);
   }
 }

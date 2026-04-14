@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { seyfApiError } from "@/lib/seyf/api-error";
 import { verifyEtherfuseWebhookSignature } from "@/lib/etherfuse/webhook-verify";
 
 export const runtime = "nodejs";
@@ -16,7 +17,7 @@ export async function POST(req: Request) {
   try {
     payload = JSON.parse(raw) as unknown;
   } catch {
-    return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
+    return seyfApiError(400, "bad_json");
   }
 
   const secret = process.env.ETHERFUSE_WEBHOOK_SECRET?.trim();
@@ -24,13 +25,15 @@ export async function POST(req: Request) {
 
   if (secret) {
     if (!verifyEtherfuseWebhookSignature(payload, sig, secret)) {
-      return NextResponse.json({ error: "Firma inválida" }, { status: 401 });
+      return seyfApiError(401, "unauthorized", {
+        message_es: "La firma del webhook no es válida.",
+      });
     }
   } else if (process.env.NODE_ENV === "production") {
-    return NextResponse.json(
-      { error: "ETHERFUSE_WEBHOOK_SECRET no configurado" },
-      { status: 503 },
-    );
+    return seyfApiError(503, "provider_unavailable", {
+      message_es: "El servicio de webhooks no está configurado correctamente en el servidor.",
+      retryable: false,
+    });
   }
 
   if (process.env.NODE_ENV !== "production") {

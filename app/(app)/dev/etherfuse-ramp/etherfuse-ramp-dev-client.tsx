@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useMemo, useState } from 'react'
+import { getSeyfErrorDisplayMessage } from '@/lib/seyf/read-client-api-error'
 import { AppBackLink } from '@/components/app/app-back-link'
 import { AppPageBody } from '@/components/app/app-page-body'
 import { Button } from '@/components/ui/button'
@@ -53,11 +54,7 @@ export default function EtherfuseRampDevClient() {
     })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
-      const msg =
-        typeof data.error === 'string'
-          ? data.error
-          : `${res.status} ${res.statusText}${Object.keys(data).length ? ` — ${JSON.stringify(data)}` : ''}`
-      throw new Error(msg)
+      throw new Error(getSeyfErrorDisplayMessage(data, 'No se pudo obtener la cotización.'))
     }
     return JSON.stringify(data, null, 2)
   }, [sourceAmount, targetOverride])
@@ -84,7 +81,7 @@ export default function EtherfuseRampDevClient() {
     })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
-      throw new Error(typeof data.error === 'string' ? data.error : res.statusText)
+      throw new Error(getSeyfErrorDisplayMessage(data, 'No se pudo crear la orden.'))
     }
     return JSON.stringify(data, null, 2)
   }, [])
@@ -109,7 +106,7 @@ export default function EtherfuseRampDevClient() {
     })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
-      throw new Error(typeof data.error === 'string' ? data.error : res.statusText)
+      throw new Error(getSeyfErrorDisplayMessage(data, 'No se pudo simular el depósito SPEI en sandbox.'))
     }
 
     let orderPolled: unknown = null
