@@ -5,7 +5,10 @@ import Link from 'next/link'
 import { AppPageBody } from '@/components/app/app-page-body'
 import { AppBackLink } from '@/components/app/app-back-link'
 import { Button } from '@/components/ui/button'
-import { getSeyfErrorDisplayMessage } from '@/lib/seyf/read-client-api-error'
+import {
+  fetchWithSeyfRetryOnce,
+  getSeyfErrorDisplayMessage,
+} from '@/lib/seyf/read-client-api-error'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
@@ -40,7 +43,9 @@ export default function PruebaMxnCetesClient() {
   const stopPoll = useRef(false)
 
   const pollOrder = useCallback(async (oid: string) => {
-    const res = await fetch(`/api/seyf/etherfuse/prueba/order/${encodeURIComponent(oid)}`)
+    const res = await fetchWithSeyfRetryOnce(
+      `/api/seyf/etherfuse/prueba/order/${encodeURIComponent(oid)}`,
+    )
     const data = (await res.json().catch(() => ({}))) as Record<string, unknown>
     if (!res.ok) {
       setPollError(getSeyfErrorDisplayMessage(data, 'No se pudo leer el estado de la orden.'))
@@ -85,7 +90,7 @@ export default function PruebaMxnCetesClient() {
 
     setLoading(true)
     try {
-      const res = await fetch('/api/seyf/etherfuse/prueba/mxn-cetes', {
+      const res = await fetchWithSeyfRetryOnce('/api/seyf/etherfuse/prueba/mxn-cetes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -4,7 +4,10 @@ import { useEffect, useState, type ReactNode } from 'react'
 import type { UserMovement } from '@/lib/seyf/user-movements-types'
 import { formatMovementFechaHora } from '@/lib/seyf/user-movements-types'
 import { stellarTxExplorerUrl } from '@/lib/etherfuse/stellar-tx-url'
-import { getSeyfErrorDisplayMessage } from '@/lib/seyf/read-client-api-error'
+import {
+  fetchWithSeyfRetryOnce,
+  getSeyfErrorDisplayMessage,
+} from '@/lib/seyf/read-client-api-error'
 
 function txSigFromOrderPayload(data: unknown): string | null {
   if (!data || typeof data !== 'object') return null
@@ -58,7 +61,9 @@ export function MovementDetailSheet({
 
     let cancelled = false
     setTxLoading(true)
-    void fetch(`/api/seyf/etherfuse/prueba/order/${encodeURIComponent(movement.orderId)}`)
+    void fetchWithSeyfRetryOnce(
+      `/api/seyf/etherfuse/prueba/order/${encodeURIComponent(movement.orderId)}`,
+    )
       .then(async (r) => {
         const data = await r.json().catch(() => ({}))
         if (!r.ok) {

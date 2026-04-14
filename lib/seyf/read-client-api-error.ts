@@ -34,3 +34,26 @@ export function getSeyfErrorDisplayMessage(json: unknown, fallbackEs = 'No pudim
 export function getSeyfErrorRetryable(json: unknown): boolean | null {
   return extractSeyfApiError(json)?.retryable ?? null
 }
+
+const SEYF_RETRY_BACKOFF_MS = 450
+
+/**
+ * Si la primera respuesta es error Seyf con `retryable: true`, espera un instante y repite el `fetch` una sola vez.
+ * Útil para `provider_unavailable`, `spei_timeout`, `deploy_failed`, etc.
+ */
+export async function fetchWithSeyfRetryOnce(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<Response> {
+  const first = await fetch(input, init)
+  if (first.ok) return first
+  let parsed: unknown
+  try {
+    parsed = await first.clone().json()
+  } catch {
+    return first
+  }
+  if (getSeyfErrorRetryable(parsed) !== true) return first
+  await new Promise((r) => setTimeout(r, SEYF_RETRY_BACKOFF_MS))
+  return fetch(input, init)
+}

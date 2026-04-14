@@ -22,6 +22,7 @@ import {
   DASHBOARD_MOVEMENTS_PREVIEW_LIMIT,
   type DashboardViewModel,
 } from '@/lib/seyf/dashboard-view-model-types'
+import { fetchWithSeyfRetryOnce } from '@/lib/seyf/read-client-api-error'
 import { formatMovementListSubtitle, type UserMovement } from '@/lib/seyf/user-movements-types'
 import { cn } from '@/lib/utils'
 
@@ -114,7 +115,7 @@ export default function DashboardClient({
     }
     let cancelled = false
     setStablebondCetes((s) => ({ ...s, loading: true }))
-    void fetch('/api/seyf/etherfuse/lookup/stablebonds?cetesOnly=1')
+    void fetchWithSeyfRetryOnce('/api/seyf/etherfuse/lookup/stablebonds?cetesOnly=1')
       .then(async (r) => {
         const data = (await r.json().catch(() => ({}))) as {
           cetes?: EtherfuseStablebondInfo | null
@@ -158,7 +159,7 @@ export default function DashboardClient({
       return
     }
     let cancelled = false
-    void fetch(`/api/seyf/stellar-movements?account=${encodeURIComponent(addr)}`)
+    void fetchWithSeyfRetryOnce(`/api/seyf/stellar-movements?account=${encodeURIComponent(addr)}`)
       .then(async (r) => {
         if (!r.ok) return [] as UserMovement[]
         const data = (await r.json()) as unknown
@@ -188,7 +189,7 @@ export default function DashboardClient({
 
   const refreshDashboard = useCallback(async () => {
     try {
-      const r = await fetch(pollBustUrl('/api/seyf/dashboard'), POLL_FETCH_INIT)
+      const r = await fetchWithSeyfRetryOnce(pollBustUrl('/api/seyf/dashboard'), POLL_FETCH_INIT)
       if (!r.ok) return
       const next = (await r.json()) as DashboardViewModel
       setLiveVm(next)

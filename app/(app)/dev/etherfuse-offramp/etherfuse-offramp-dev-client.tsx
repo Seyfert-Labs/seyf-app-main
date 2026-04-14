@@ -1,7 +1,10 @@
 'use client'
 
 import { useCallback, useMemo, useState } from 'react'
-import { getSeyfErrorDisplayMessage } from '@/lib/seyf/read-client-api-error'
+import {
+  fetchWithSeyfRetryOnce,
+  getSeyfErrorDisplayMessage,
+} from '@/lib/seyf/read-client-api-error'
 import { AppBackLink } from '@/components/app/app-back-link'
 import { AppPageBody } from '@/components/app/app-page-body'
 import { OfframpActionCard } from '@/components/app/dev/offramp-action-card'
@@ -47,7 +50,7 @@ export default function EtherfuseOfframpDevClient() {
     }
     const t = sourceAssetOverride.trim()
     if (t) body.sourceAsset = t
-    const res = await fetch('/api/seyf/etherfuse/quote/offramp', {
+    const res = await fetchWithSeyfRetryOnce('/api/seyf/etherfuse/quote/offramp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -75,7 +78,7 @@ export default function EtherfuseOfframpDevClient() {
       if (!quoteId) {
         throw new Error('No encuentro quoteId en la cotización (~2 min de validez)')
       }
-      const res = await fetch('/api/seyf/etherfuse/order/offramp', {
+      const res = await fetchWithSeyfRetryOnce('/api/seyf/etherfuse/order/offramp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ quoteId, useAnchor }),
@@ -116,7 +119,7 @@ export default function EtherfuseOfframpDevClient() {
       for (let i = 0; i < 12; i++) {
         pollAttempts = i + 1
         if (i > 0) await new Promise((r) => setTimeout(r, 1500))
-        const gr = await fetch(
+        const gr = await fetchWithSeyfRetryOnce(
           `/api/seyf/etherfuse/prueba/order/${encodeURIComponent(orderId)}`,
         )
         if (!gr.ok) continue

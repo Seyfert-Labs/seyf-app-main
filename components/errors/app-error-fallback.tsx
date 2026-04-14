@@ -7,15 +7,17 @@ import { Button } from '@/components/ui/button'
 type AppErrorFallbackProps = {
   title?: string
   description?: string
+  /** Reintenta el segmento (p. ej. `reset` de Next.js); botón secundario, no sustituye «Ir al inicio». */
+  onRetry?: () => void
 }
 
 /**
- * Pantalla de error sobria: una acción principal, sin CTAs de reintento que carguen la UI.
- * Recuperación: el usuario puede actualizar la página o seguir la navegación.
+ * Pantalla de error sobria: acción principal al inicio; opcionalmente reintento del segmento vía `onRetry`.
  */
 export function AppErrorFallback({
   title = 'Algo salió mal',
   description = 'Vuelve al inicio o actualiza la página.',
+  onRetry,
 }: AppErrorFallbackProps) {
   return (
     <div className="flex min-h-[70vh] flex-col items-center justify-center bg-background px-6 py-12 text-center">
@@ -28,6 +30,16 @@ export function AppErrorFallback({
         <Button asChild variant="default" className="h-11 w-full rounded-full font-semibold">
           <Link href="/dashboard">Ir al inicio</Link>
         </Button>
+        {onRetry ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 w-full rounded-full font-semibold"
+            onClick={onRetry}
+          >
+            Intentar de nuevo
+          </Button>
+        ) : null}
         <Link
           href="/"
           className="text-sm font-medium text-muted-foreground underline-offset-4 transition hover:text-foreground hover:underline"

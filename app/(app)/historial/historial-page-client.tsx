@@ -13,6 +13,7 @@ import {
   HISTORIAL_POLL_MS,
 } from '@/lib/seyf/balance-poll-intervals'
 import { POLL_FETCH_INIT, pollBustUrl } from '@/lib/seyf/poll-fetch'
+import { fetchWithSeyfRetryOnce } from '@/lib/seyf/read-client-api-error'
 import type { UserMovement } from '@/lib/seyf/user-movements-types'
 import { formatMovementListSubtitle } from '@/lib/seyf/user-movements-types'
 import { cn } from '@/lib/utils'
@@ -85,7 +86,7 @@ export default function HistorialPageClient() {
     const errs: string[] = []
 
     try {
-      const stellarR = await fetch(
+      const stellarR = await fetchWithSeyfRetryOnce(
         `/api/seyf/stellar-movements?account=${encodeURIComponent(addr)}`,
       )
       if (stellarR.ok) {
@@ -100,7 +101,10 @@ export default function HistorialPageClient() {
     }
 
     try {
-      const umR = await fetch(pollBustUrl('/api/seyf/user-movements'), POLL_FETCH_INIT)
+      const umR = await fetchWithSeyfRetryOnce(
+        pollBustUrl('/api/seyf/user-movements'),
+        POLL_FETCH_INIT,
+      )
       if (umR.ok) {
         const j = (await umR.json()) as { movements?: UserMovement[] }
         if (Array.isArray(j.movements)) fromApi = j.movements
@@ -132,8 +136,8 @@ export default function HistorialPageClient() {
     try {
       const addr = wallet.stellarAddress.trim()
       const [stellarR, umR] = await Promise.all([
-        fetch(`/api/seyf/stellar-movements?account=${encodeURIComponent(addr)}`),
-        fetch(pollBustUrl('/api/seyf/user-movements'), POLL_FETCH_INIT),
+        fetchWithSeyfRetryOnce(`/api/seyf/stellar-movements?account=${encodeURIComponent(addr)}`),
+        fetchWithSeyfRetryOnce(pollBustUrl('/api/seyf/user-movements'), POLL_FETCH_INIT),
       ])
       let stellar: UserMovement[] = []
       if (stellarR.ok) {

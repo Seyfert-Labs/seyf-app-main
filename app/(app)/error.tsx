@@ -5,7 +5,7 @@ import { AppErrorFallback } from '@/components/errors/app-error-fallback'
 
 export default function AppSegmentError({
   error,
-  reset: _reset,
+  reset,
 }: {
   error: Error & { digest?: string }
   reset: () => void
@@ -18,6 +18,7 @@ export default function AppSegmentError({
     <AppErrorFallback
       title="No pudimos mostrar esta sección"
       description="No se pudo cargar esta sección. Vuelve al inicio o actualiza."
+      onRetry={reset}
     />
   )
 }

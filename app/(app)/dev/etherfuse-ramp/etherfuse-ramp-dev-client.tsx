@@ -1,7 +1,10 @@
 'use client'
 
 import { useCallback, useMemo, useState } from 'react'
-import { getSeyfErrorDisplayMessage } from '@/lib/seyf/read-client-api-error'
+import {
+  fetchWithSeyfRetryOnce,
+  getSeyfErrorDisplayMessage,
+} from '@/lib/seyf/read-client-api-error'
 import { AppBackLink } from '@/components/app/app-back-link'
 import { AppPageBody } from '@/components/app/app-page-body'
 import { Button } from '@/components/ui/button'
@@ -47,7 +50,7 @@ export default function EtherfuseRampDevClient() {
     }
     const t = targetOverride.trim()
     if (t) body.targetAsset = t
-    const res = await fetch('/api/seyf/etherfuse/quote/onramp', {
+    const res = await fetchWithSeyfRetryOnce('/api/seyf/etherfuse/quote/onramp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -74,7 +77,7 @@ export default function EtherfuseRampDevClient() {
     if (!quoteId) {
       throw new Error('No encuentro quoteId en la cotización (~2 min de validez)')
     }
-    const res = await fetch('/api/seyf/etherfuse/order/onramp', {
+    const res = await fetchWithSeyfRetryOnce('/api/seyf/etherfuse/order/onramp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ quoteId }),
@@ -99,7 +102,7 @@ export default function EtherfuseRampDevClient() {
         'No encuentro orderId (revisa raíz o onramp/on_ramp en el JSON de la orden).',
       )
     }
-    const res = await fetch('/api/seyf/etherfuse/sandbox/fiat-received', {
+    const res = await fetchWithSeyfRetryOnce('/api/seyf/etherfuse/sandbox/fiat-received', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ orderId }),
@@ -114,7 +117,9 @@ export default function EtherfuseRampDevClient() {
     for (let i = 0; i < 12; i++) {
       pollAttempts = i + 1
       if (i > 0) await new Promise((r) => setTimeout(r, 1500))
-      const gr = await fetch(`/api/seyf/etherfuse/prueba/order/${encodeURIComponent(orderId)}`)
+      const gr = await fetchWithSeyfRetryOnce(
+        `/api/seyf/etherfuse/prueba/order/${encodeURIComponent(orderId)}`,
+      )
       if (!gr.ok) continue
       const gj = (await gr.json().catch(() => ({}))) as { order?: unknown }
       orderPolled = gj.order ?? null

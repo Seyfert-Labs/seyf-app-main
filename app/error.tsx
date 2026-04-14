@@ -5,7 +5,7 @@ import { AppErrorFallback } from '@/components/errors/app-error-fallback'
 
 export default function RootError({
   error,
-  reset: _reset,
+  reset,
 }: {
   error: Error & { digest?: string }
   reset: () => void
@@ -18,6 +18,7 @@ export default function RootError({
     <AppErrorFallback
       title="No pudimos cargar esta parte"
       description="Error inesperado. Vuelve al inicio o actualiza la página."
+      onRetry={reset}
     />
   )
 }

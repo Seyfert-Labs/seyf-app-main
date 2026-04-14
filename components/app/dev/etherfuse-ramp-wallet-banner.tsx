@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { getSeyfErrorDisplayMessage } from '@/lib/seyf/read-client-api-error'
+import {
+  fetchWithSeyfRetryOnce,
+  getSeyfErrorDisplayMessage,
+} from '@/lib/seyf/read-client-api-error'
 
 type RampContextPayload = {
   publicKey: string
@@ -29,7 +32,7 @@ export function EtherfuseRampWalletBanner({
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    fetch('/api/seyf/etherfuse/ramp-context')
+    fetchWithSeyfRetryOnce('/api/seyf/etherfuse/ramp-context')
       .then(async (r) => {
         const j = (await r.json().catch(() => ({}))) as Partial<RampContextPayload> & Record<string, unknown>
         if (!r.ok) {

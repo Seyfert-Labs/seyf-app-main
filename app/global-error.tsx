@@ -6,7 +6,7 @@ import { AppErrorFallback } from '@/components/errors/app-error-fallback'
 
 export default function GlobalError({
   error,
-  reset: _reset,
+  reset,
 }: {
   error: Error & { digest?: string }
   reset: () => void
@@ -21,6 +21,7 @@ export default function GlobalError({
         <AppErrorFallback
           title="Algo salió mal"
           description="Error grave. Vuelve al inicio o actualiza más tarde."
+          onRetry={reset}
         />
       </body>
     </html>

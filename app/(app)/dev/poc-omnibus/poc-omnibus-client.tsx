@@ -1,7 +1,10 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { getSeyfErrorDisplayMessage } from '@/lib/seyf/read-client-api-error'
+import {
+  fetchWithSeyfRetryOnce,
+  getSeyfErrorDisplayMessage,
+} from '@/lib/seyf/read-client-api-error'
 import Link from 'next/link'
 import { AppBackLink } from '@/components/app/app-back-link'
 import { AppPageBody } from '@/components/app/app-page-body'
@@ -31,7 +34,7 @@ export default function PocOmnibusClient() {
 
   const load = useCallback(async () => {
     setErr(null)
-    const res = await fetch('/api/seyf/poc/ledger')
+    const res = await fetchWithSeyfRetryOnce('/api/seyf/poc/ledger')
     const j = await res.json().catch(() => ({}))
     if (!res.ok) {
       setErr(getSeyfErrorDisplayMessage(j, 'No se pudo cargar el libro PoC.'))
@@ -53,7 +56,7 @@ export default function PocOmnibusClient() {
         setErr('Monto inválido')
         return
       }
-      const res = await fetch('/api/seyf/poc/ledger', {
+      const res = await fetchWithSeyfRetryOnce('/api/seyf/poc/ledger', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

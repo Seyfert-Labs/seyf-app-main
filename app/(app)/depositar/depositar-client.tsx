@@ -7,7 +7,10 @@ import { AppBackLink } from '@/components/app/app-back-link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { getSeyfErrorDisplayMessage } from '@/lib/seyf/read-client-api-error'
+import {
+  fetchWithSeyfRetryOnce,
+  getSeyfErrorDisplayMessage,
+} from '@/lib/seyf/read-client-api-error'
 
 const MIN_MXN = 500
 
@@ -67,7 +70,7 @@ export default function DepositarClient() {
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      const res = await fetch('/api/seyf/etherfuse/mvp/account')
+      const res = await fetchWithSeyfRetryOnce('/api/seyf/etherfuse/mvp/account')
       const data = (await res.json()) as { error?: string; walletMasked?: string; bankAccountId?: string }
       if (cancelled) return
       if (!res.ok) {
@@ -100,7 +103,7 @@ export default function DepositarClient() {
       setLoading(true)
       setDeposit(null)
       try {
-        const res = await fetch('/api/seyf/etherfuse/mvp/onramp', {
+        const res = await fetchWithSeyfRetryOnce('/api/seyf/etherfuse/mvp/onramp', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

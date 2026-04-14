@@ -8,7 +8,7 @@
 | Códigos `spei_timeout`, `deploy_failed`, `advance_limit_exceeded`, `kyc_pending`, `insufficient_balance`, `provider_unavailable` | Definidos en `SEYF_API_ERROR_CODES` y tabla abajo; más códigos auxiliares (`validation_error`, `unauthorized`, etc.). |
 | Error boundary global con pantalla amable | `app/error.tsx`, `app/global-error.tsx`, `app/(app)/error.tsx` + `components/errors/app-error-fallback.tsx`. |
 | Sin mensajes crudos de Stellar / Etherfuse / Pollar en UI | Las rutas usan `seyfErrorFromUnknown` (solo log en servidor). Clientes que llaman a esas APIs usan `getSeyfErrorDisplayMessage` / `extractSeyfApiError` (p. ej. depósito, ramp dev, PoC, movimiento, prueba MXN-CETES). |
-| `retryable` en JSON | El campo se expone para clientes que reintenten en **segundo plano** (polling, re-fetch) sin añadir botones extra en la UI; la app mantiene pantallas de error **sobrias** (navegación a inicio, sin CTA de reintento prominente). |
+| `retryable` en JSON | El campo guía **un reintento automático** en cliente (`fetchWithSeyfRetryOnce` en `read-client-api-error.ts`) en llamadas a `/api/seyf/**`. Los boundaries (`error.tsx` / `global-error.tsx`) ofrecen además **«Intentar de nuevo»** secundario (`reset` de Next.js), sin sustituir «Ir al inicio». |
 | 500 genérico «Algo salió mal. Estamos en ello.» sin stack en JSON | `seyfInternalError()` en `api-error.ts`. |
 | Documentación en `/docs/error-codes.md` | Este archivo. |
 
@@ -53,7 +53,7 @@ Los clientes **no** deben mostrar `Error.message` crudo de Stellar, Etherfuse ni
 ## UI
 
 - **`message_es`**: mostrar como texto informativo (toast, banner o mensaje bajo el campo); tono profesional, sin listas de botones.
-- **`retryable`**: usar solo para lógica (p. ej. reintentar `fetch` automáticamente una vez, o seguir polling), no como excusa para apilar CTAs en pantalla.
+- **`retryable`**: un segundo `fetch` tras ~450 ms si el servidor devolvió error Seyf con `retryable: true`; en formularios y banners que ya usan `getSeyfErrorDisplayMessage`, las peticiones van con `fetchWithSeyfRetryOnce`. En pantallas de error de segmento, «Intentar de nuevo» re-ejecuta el árbol de React del segmento.
 
 ## Referencias
 
