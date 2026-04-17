@@ -2,12 +2,13 @@
 
 import Link from 'next/link'
 import { Search, BarChart3, CreditCard } from 'lucide-react'
-import { useAccesly } from 'accesly'
+import { useSeyfWallet } from '@/lib/seyf/use-seyf-wallet'
 import AppUserAccountPanel from '@/components/app/app-user-account-panel'
 import {
   Sheet,
   SheetClose,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
@@ -22,7 +23,7 @@ function avatarLabel(wallet: { email?: string; stellarAddress: string } | null, 
 }
 
 export default function AppTopBar() {
-  const { wallet, loading } = useAccesly()
+  const { wallet, loading } = useSeyfWallet()
 
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur-xl">
@@ -40,7 +41,10 @@ export default function AppTopBar() {
           <SheetContent side="right" className="flex flex-col gap-0 overflow-hidden p-0">
             <SheetHeader className="shrink-0 space-y-1 border-b border-border bg-gradient-to-br from-violet-700/15 via-indigo-700/10 to-background px-4 py-4 pr-12 text-left">
               <SheetTitle className="text-lg font-bold tracking-tight">Tu cuenta</SheetTitle>
-              <p className="text-xs text-muted-foreground">Perfil y sesión Accesly</p>
+              <SheetDescription className="sr-only">
+                Perfil, dirección Stellar y sesión Pollar
+              </SheetDescription>
+              <p className="text-xs text-muted-foreground">Perfil y sesión Pollar</p>
             </SheetHeader>
 
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">

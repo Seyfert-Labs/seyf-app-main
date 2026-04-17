@@ -1,6 +1,6 @@
 'use client'
 
-import AcceslyWalletPanel from '@/components/accesly-wallet-panel'
+import PollarWalletPanel from '@/components/pollar-wallet-panel'
 import HeroSection from '@/components/hero-section'
 
 export default function Home() {
@@ -13,7 +13,7 @@ export default function Home() {
         id="landing-sesion"
         className="min-h-screen snap-start scroll-mt-0"
       >
-        <AcceslyWalletPanel />
+        <PollarWalletPanel />
       </section>
     </main>
   )

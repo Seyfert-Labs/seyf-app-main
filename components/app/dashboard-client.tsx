@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ChevronRight, Eye, EyeOff, TrendingUp, Wallet, Zap } from 'lucide-react'
-import { useAccesly } from 'accesly'
+import { useSeyfWallet } from '@/lib/seyf/use-seyf-wallet'
 import { AppPageBody } from '@/components/app/app-page-body'
 import { DashboardHeroCarousel } from '@/components/app/dashboard-hero-carousel'
 import { MovementDetailSheet } from '@/components/app/movement-detail-sheet'
@@ -74,7 +74,7 @@ export default function DashboardClient({
   showEtherfuseRampDev?: boolean
   vm: DashboardViewModel
 }) {
-  const { wallet, assetBalances, loading, refreshBalance } = useAccesly()
+  const { wallet, assetBalances, loading, refreshBalance } = useSeyfWallet()
   const [selected, setSelected] = useState<UserMovement | null>(null)
   const [liveVm, setLiveVm] = useState(vm)
   const [hideBalances, setHideBalances] = useState(false)
@@ -256,7 +256,7 @@ export default function DashboardClient({
         <div className="rounded-[1.5rem] border border-border bg-card px-5 py-8 text-center">
           <p className="text-sm font-bold text-foreground">Conecta tu wallet</p>
           <p className="mt-2 text-xs text-muted-foreground">
-            Para ver tu saldo MXNe en el tablero, inicia sesión con Accesly desde el inicio.
+            Para ver tu saldo MXNe en el tablero, inicia sesión con Pollar desde el inicio.
           </p>
           <Button asChild className="mt-6 h-11 w-full max-w-xs rounded-full font-bold">
             <Link href="/">Ir a conectar</Link>

@@ -4,12 +4,13 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Check, Copy, LogOut, ShieldCheck, UserRound } from 'lucide-react'
-import { useAccesly } from 'accesly'
+import { useSeyfWallet } from '@/lib/seyf/use-seyf-wallet'
 import { Button } from '@/components/ui/button'
 import {
-  ACCESLY_BALANCE_EXTRA_DELAYS_MS,
-  ACCESLY_BALANCE_POLL_MS,
+  SEYF_WALLET_BALANCE_EXTRA_DELAYS_MS,
+  SEYF_WALLET_BALANCE_POLL_MS,
 } from '@/lib/seyf/balance-poll-intervals'
+import { stellarWalletNetworkFromEnv } from '@/lib/seyf/stellar-wallet-network'
 
 function maskAddress(value?: string | null) {
   if (!value) return '—'
@@ -24,9 +25,7 @@ function shortKey(value?: string | null, head = 8, tail = 4) {
 }
 
 function formatNetwork() {
-  const n = process.env.NEXT_PUBLIC_ACCESLY_NETWORK
-  if (n === 'mainnet' || n === 'testnet') return n
-  return 'testnet'
+  return stellarWalletNetworkFromEnv()
 }
 
 type AppUserAccountPanelProps = {
@@ -36,7 +35,7 @@ type AppUserAccountPanelProps = {
 
 export default function AppUserAccountPanel({ embedded = false }: AppUserAccountPanelProps) {
   const router = useRouter()
-  const { wallet, balance, loading, disconnect, refreshBalance } = useAccesly()
+  const { wallet, balance, loading, balanceError, disconnect, refreshBalance } = useSeyfWallet()
   const [addressCopied, setAddressCopied] = useState(false)
   const copyResetRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -55,10 +54,10 @@ export default function AppUserAccountPanel({ embedded = false }: AppUserAccount
       void refreshBalance().catch(() => {})
     }
     tick()
-    const extraTimers = ACCESLY_BALANCE_EXTRA_DELAYS_MS.map((ms) =>
+    const extraTimers = SEYF_WALLET_BALANCE_EXTRA_DELAYS_MS.map((ms) =>
       setTimeout(tick, ms),
     )
-    const id = setInterval(tick, ACCESLY_BALANCE_POLL_MS)
+    const id = setInterval(tick, SEYF_WALLET_BALANCE_POLL_MS)
     const onVis = () => {
       if (document.visibilityState === 'visible') tick()
     }
@@ -102,7 +101,7 @@ export default function AppUserAccountPanel({ embedded = false }: AppUserAccount
     router.push('/')
   }
 
-  if (loading) {
+  if (loading && !wallet) {
     return (
       <section
         className={`animate-pulse border border-border bg-card ${embedded ? 'rounded-xl' : 'rounded-[1.5rem]'}`}
@@ -125,7 +124,7 @@ export default function AppUserAccountPanel({ embedded = false }: AppUserAccount
         className={`border border-border bg-card px-4 py-5 text-center ${embedded ? 'rounded-xl' : 'rounded-[1.5rem]'}`}
       >
         <UserRound className="mx-auto size-10 text-muted-foreground" strokeWidth={1.5} />
-        <p className="mt-3 text-sm font-semibold text-foreground">Sin sesión Accesly</p>
+        <p className="mt-3 text-sm font-semibold text-foreground">Sin sesión Pollar</p>
         <p className="mt-1 text-xs text-muted-foreground">
           Conecta tu wallet desde el inicio para ver tu cuenta aquí.
         </p>
@@ -154,7 +153,11 @@ export default function AppUserAccountPanel({ embedded = false }: AppUserAccount
       copyFullText: wallet.stellarAddress,
     },
     { label: 'Clave pública', value: shortKey(wallet.publicKey), mono: true },
-    { label: 'Contrato', value: shortKey(wallet.contractId), mono: true },
+    {
+      label: 'Contrato',
+      value: wallet.contractId ? shortKey(wallet.contractId) : '—',
+      mono: true,
+    },
     {
       label: 'Balance XLM',
       value: balance != null && balance !== '' ? `${balance} XLM` : '—',
@@ -182,6 +185,16 @@ export default function AppUserAccountPanel({ embedded = false }: AppUserAccount
 
   return (
     <section className={`overflow-hidden ${shell}`}>
+      {balanceError ? (
+        <div className="border-b border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+          <p className="font-semibold">No se pudieron cargar los saldos</p>
+          <p className="mt-1 text-amber-100/85">
+            {balanceError}. Si ves «Origin not allowed», añade en Pollar Dashboard la URL exacta de esta
+            pestaña (p. ej. <code className="rounded bg-black/30 px-1">http://localhost:3000</code> y{' '}
+            <code className="rounded bg-black/30 px-1">http://127.0.0.1:3000</code>).
+          </p>
+        </div>
+      ) : null}
       <div className="relative overflow-hidden border-b border-border bg-gradient-to-br from-violet-700/20 via-indigo-700/15 to-sky-700/10 px-4 py-4">
         <div className="pointer-events-none absolute -right-12 -top-12 h-28 w-28 rounded-full bg-violet-400/20 blur-2xl" />
         <div className="pointer-events-none absolute -bottom-12 -left-12 h-28 w-28 rounded-full bg-cyan-400/10 blur-2xl" />
@@ -191,7 +204,7 @@ export default function AppUserAccountPanel({ embedded = false }: AppUserAccount
           </div>
           <div className="min-w-0 flex-1">
             <h2 className="text-sm font-bold text-foreground">Tu perfil</h2>
-            <p className="truncate text-xs text-muted-foreground">Accesly · Stellar</p>
+            <p className="truncate text-xs text-muted-foreground">Pollar · Stellar</p>
           </div>
           <p className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/25 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-violet-100/90">
             <ShieldCheck className="size-3" />

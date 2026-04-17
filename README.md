@@ -1,6 +1,6 @@
 # Seyf App
 
-**Seyf** is a **Next.js** web app for savings, yield-based advances, **fiat ↔ crypto** ramps through **Etherfuse**, and **Stellar** custody / signing via **Accesly**. It targets the Mexican market (MXN, CETES / MXNe, SPEI flows in sandbox).
+**Seyf** is a **Next.js** web app for savings, yield-based advances, **fiat ↔ crypto** ramps through **Etherfuse**, and **Stellar** custody / signing via **Pollar** (`@pollar/react`). It targets the Mexican market (MXN, CETES / MXNe, SPEI flows in sandbox).
 
 **Product tagline:** *Buy now, Pay never*.
 
@@ -36,7 +36,7 @@ High-level journey: the user discovers Seyf, connects a Stellar wallet, complete
 ```mermaid
 flowchart TD
   A[Landing /] --> B{Wallet connected?}
-  B -->|No| C[Connect via Accesly]
+  B -->|No| C[Connect via Pollar]
   C --> B
   B -->|Yes| D[Dashboard]
   D --> E[Identity /identidad]
@@ -58,7 +58,7 @@ flowchart TD
 | Step | What happens |
 |------|----------------|
 | 1 | User opens the app; marketing / entry on `/` or auth on `/login`, `/registro`. |
-| 2 | User connects **Accesly** (Stellar wallet). Dashboard shows **MXNe** balance and CETES/stablebond reference when applicable. |
+| 2 | User connects **Pollar** (Stellar wallet). Dashboard shows **MXNe** balance and CETES/stablebond reference when applicable. |
 | 3 | For ramps and live CETES valuation, user completes **Etherfuse onboarding** on `/identidad`; server stores an **httpOnly cookie** with ramp context. |
 | 4 | User deposits or withdraws through product routes; **Next.js route handlers** call Etherfuse with the **server-side API key**. |
 | 5 | **History** merges on-chain payments (**Horizon**, both networks) with **Etherfuse** orders; mock ledger rows are omitted in history. |
@@ -73,7 +73,7 @@ How the browser, Next.js, and external services interact for a typical dashboard
 flowchart LR
   subgraph Client
     UI[React Client Components]
-    AC[Accesly SDK]
+    AC[Pollar SDK]
   end
   subgraph NextJS[Next.js Server]
     RSC[Server Components / pages]
@@ -119,7 +119,7 @@ sequenceDiagram
 | Framework | **Next.js 16** (App Router) |
 | UI | **React 19**, **Tailwind CSS 4**, **Radix UI**, **Framer Motion**, **Lucide** |
 | Language | **TypeScript 5.7** |
-| Wallet / Stellar (client) | **Accesly** (`accesly` npm package) |
+| Wallet / Stellar (client) | **Pollar** (`@pollar/react`, `@pollar/core`) |
 | Stellar (server / tooling) | **@stellar/stellar-sdk** |
 | Forms / validation | **react-hook-form**, **Zod** |
 | Analytics | **@vercel/analytics** (optional in root layout) |
@@ -133,7 +133,7 @@ Sensitive **Etherfuse** calls run in **route handlers** and `lib/` only (API key
 - **Node.js** 20+ (match your CI / Vercel version).
 - **npm** (or pnpm/yarn if you adapt commands).
 - **Etherfuse** account and **API key** (sandbox: `api.sand.etherfuse.com`).
-- **Accesly** project with `NEXT_PUBLIC_ACCESLY_APP_ID` unless you intentionally use the code fallback for local dev only.
+- **Pollar** app + publishable key: `NEXT_PUBLIC_POLLAR_API_KEY` (see [Pollar API keys](https://docs.pollar.xyz/docs/getting-started/api-keys)).
 
 ---
 
@@ -189,8 +189,8 @@ Copy **`.env.example`** → **`.env.local`**. Do not commit secrets.
 
 | Variable | Purpose |
 |----------|---------|
-| `NEXT_PUBLIC_ACCESLY_APP_ID` | Accesly app id (configure your own for real deployments). |
-| `NEXT_PUBLIC_ACCESLY_NETWORK` | `testnet` \| `mainnet` — Accesly + default Horizon helper in `lib/seyf/horizon-payments.ts`. |
+| `NEXT_PUBLIC_POLLAR_API_KEY` | Pollar publishable API key (alias: `NEXT_PUBLIC_POLLAR_PUBLISHABLE_KEY`). |
+| `NEXT_PUBLIC_POLLAR_STELLAR_NETWORK` | `testnet` \| `mainnet` — Pollar SDK + Horizon default in `lib/seyf/horizon-payments.ts` (fallback: legacy `NEXT_PUBLIC_ACCESLY_NETWORK`, `NEXT_PUBLIC_STELLAR_NETWORK`). |
 | `NEXT_PUBLIC_STELLAR_NETWORK` | Stellar Expert link default in `lib/etherfuse/stellar-tx-url.ts` when movement has no explicit network. |
 
 **Note:** If you rotate `ETHERFUSE_API_KEY` or change Etherfuse org, invalidate the onboarding cookie (`seyf_ef_onboarding`) — use **Reset trial** on `/identidad` or clear the cookie.
@@ -201,7 +201,7 @@ Copy **`.env.example`** → **`.env.local`**. Do not commit secrets.
 
 - **Next.js App Router**: nested layouts, `page.tsx` per route, Server Components by default where used.
 - **`app/(app)/`**: logged-in shell with **top bar**, **bottom nav**, mobile-safe padding.
-- **Client components** (`'use client'`): Accesly dashboard, carousels, ramp forms, history polling.
+- **Client components** (`'use client'`): Pollar wallet, dashboard, carousels, ramp forms, history polling.
 - **Route handlers** (`app/api/**/route.ts`): secure Etherfuse proxy, webhooks, dashboard aggregation, Stellar movements, etc.
 - **Etherfuse user context**: preferably **httpOnly cookie** after onboarding (`lib/etherfuse/onboarding-session.ts`); **env-based MVP** for dev (`lib/etherfuse/partner-accounts.ts`, `lib/seyf/etherfuse-ramp-context.ts`).
 
@@ -216,7 +216,7 @@ app/                 # Next routes (UI + layouts)
   login/, registro/  # Auth entry
 components/
   app/               # Product UI (dashboard, nav, sheets, …)
-  providers/         # e.g. AcceslyProvider
+  providers/         # e.g. SeyfPollarProvider (`@pollar/react`)
   ui/                # Radix / shadcn-style primitives
 lib/
   etherfuse/         # HTTP client, quotes, orders, onboarding
@@ -231,7 +231,7 @@ scripts/             # verify-etherfuse.mjs, …
 
 | Path | Role |
 |------|------|
-| `/` | Landing / entry; Accesly connection as per public flow. |
+| `/` | Landing / entry; Pollar login as per public flow. |
 | `/login`, `/registro` | Sign-in / sign-up entry. |
 | `/dashboard` | Home: **MXNe** balance, carousel (advance, points), CETES/stablebond ref, **Lo último**, summary. |
 | `/historial` | Unified list: **Stellar testnet + mainnet** + Etherfuse orders (mock **ledger** rows excluded). |
@@ -247,11 +247,11 @@ scripts/             # verify-etherfuse.mjs, …
 
 ## Integrations
 
-### Accesly
+### Pollar
 
-- Provider: `components/providers/accesly-provider.tsx`.
-- Stellar wallet connect; **asset balances** (e.g. `MXNE`, `CETES`).
-- Dashboard uses `useAccesly()` for MXNe, refresh, and “connect wallet” gating.
+- Provider: `components/providers/pollar-provider.tsx` (`PollarProvider` from `@pollar/react`).
+- Stellar wallet (OAuth / email / external wallet per [Pollar docs](https://docs.pollar.xyz/docs)); **asset balances** via `/wallet/balance` (e.g. `MXNE`, `CETES` when enabled in the Pollar dashboard).
+- App code uses `useSeyfWallet()` (`lib/seyf/use-seyf-wallet.ts`) for the same UX shape as the old Accesly hook (MXNe, refresh, connect gating).
 
 ### Etherfuse
 
@@ -289,7 +289,7 @@ Most use `dynamic = 'force-dynamic'` and `Cache-Control: no-store` where balance
 
 ## Dashboard, movements & history
 
-- **Dashboard** (`components/app/dashboard-client.tsx`): requires Accesly wallet for full UI; server **VM** from `buildDashboardViewModel` + **polling** `GET /api/seyf/dashboard`; client fetches **Stellar** movements, merges with VM list, sorted, capped by `DASHBOARD_MOVEMENTS_PREVIEW_LIMIT` (`lib/seyf/dashboard-view-model-types.ts`). MVP **ledger** may still appear in the VM in dev.
+- **Dashboard** (`components/app/dashboard-client.tsx`): requires Pollar session / wallet for full UI; server **VM** from `buildDashboardViewModel` + **polling** `GET /api/seyf/dashboard`; client fetches **Stellar** movements, merges with VM list, sorted, capped by `DASHBOARD_MOVEMENTS_PREVIEW_LIMIT` (`lib/seyf/dashboard-view-model-types.ts`). MVP **ledger** may still appear in the VM in dev.
 - **History** (`app/(app)/historial/historial-page-client.tsx`): merges Stellar API + `GET /api/seyf/user-movements` with **`source !== 'ledger'`**; polling via `HISTORIAL_POLL_MS` and `HISTORIAL_POLL_EXTRA_DELAYS_MS` (`lib/seyf/balance-poll-intervals.ts`); row detail: `MovementDetailSheet` (Stellar Expert link respects `stellarNetwork` when set).
 - **Types**: `lib/seyf/user-movements-types.ts` — `UserMovement`, `source`: `etherfuse` \| `ledger` \| `stellar`.
 
@@ -301,7 +301,7 @@ Most use `dynamic = 'force-dynamic'` and `Cache-Control: no-store` where balance
 2. Review `lib/seyf/etherfuse-ramp-guard.ts` and `SEYF_ALLOW_*` before production.  
 3. Configure `ETHERFUSE_WEBHOOK_SECRET` for webhook verification (`app/api/webhooks/etherfuse/route.ts`).  
 4. Onboarding cookies use `secure` in production.  
-5. Keep **Stellar network** env vars aligned with the wallet and Horizon (`NEXT_PUBLIC_ACCESLY_NETWORK`, `NEXT_PUBLIC_STELLAR_NETWORK`).
+5. Keep **Stellar network** env vars aligned with the wallet and Horizon (`NEXT_PUBLIC_POLLAR_STELLAR_NETWORK`, `NEXT_PUBLIC_STELLAR_NETWORK`).
 
 ---
 
@@ -324,7 +324,7 @@ Most use `dynamic = 'force-dynamic'` and `Cache-Control: no-store` where balance
 - [Etherfuse documentation](https://docs.etherfuse.com)  
 - [Sandbox — fiat received](https://docs.etherfuse.com/sandbox-api/fiat-received)  
 - [Stellar — Horizon](https://developers.stellar.org/docs/data/horizon)  
-- [Accesly](https://accesly.io) — npm package `accesly`
+- [Pollar](https://docs.pollar.xyz/) — `@pollar/react`, `@pollar/core`
 
 ---
 

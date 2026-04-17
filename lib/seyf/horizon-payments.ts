@@ -1,3 +1,5 @@
+import { stellarWalletNetworkFromEnv } from '@/lib/seyf/stellar-wallet-network'
+
 export type HorizonNetwork = 'testnet' | 'mainnet'
 
 const HORIZON_BASE: Record<HorizonNetwork, string> = {
@@ -131,6 +133,5 @@ export async function fetchChainMovements(
 }
 
 export function horizonNetworkFromEnv(): HorizonNetwork {
-  const n = process.env.NEXT_PUBLIC_ACCESLY_NETWORK
-  return n === 'mainnet' ? 'mainnet' : 'testnet'
+  return stellarWalletNetworkFromEnv()
 }

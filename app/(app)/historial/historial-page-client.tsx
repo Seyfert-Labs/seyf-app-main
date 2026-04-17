@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useAccesly } from 'accesly'
+import { useSeyfWallet } from '@/lib/seyf/use-seyf-wallet'
 import { AppBackLink } from '@/components/app/app-back-link'
 import { AppPageBody } from '@/components/app/app-page-body'
 import { MovementDetailSheet } from '@/components/app/movement-detail-sheet'
@@ -62,7 +62,7 @@ function formatHistorialMonto(mov: UserMovement): string {
 }
 
 export default function HistorialPageClient() {
-  const { wallet, loading: walletLoading } = useAccesly()
+  const { wallet, loading: walletLoading } = useSeyfWallet()
   const [items, setItems] = useState<UserMovement[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)

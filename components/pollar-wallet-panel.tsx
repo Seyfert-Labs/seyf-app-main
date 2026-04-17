@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { useAccesly } from 'accesly'
+import { useSeyfWallet } from '@/lib/seyf/use-seyf-wallet'
 import { Button } from '@/components/ui/button'
 
 function maskAddress(value?: string | null) {
@@ -11,10 +11,11 @@ function maskAddress(value?: string | null) {
   return `${value.slice(0, 6)}...${value.slice(-6)}`
 }
 
-export default function AcceslyWalletPanel() {
+export default function PollarWalletPanel() {
   const router = useRouter()
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
+  const didRedirectToDashboardRef = useRef(false)
   const {
     wallet,
     balance,
@@ -26,21 +27,21 @@ export default function AcceslyWalletPanel() {
     connect,
     refreshBalance,
     refreshWallet,
-  } = useAccesly()
+  } = useSeyfWallet()
 
   useEffect(() => {
     setMounted(true)
   }, [])
 
   useEffect(() => {
-    if (!mounted || loading || creating) return
-    const addr = wallet?.stellarAddress
-    if (typeof addr === 'string' && addr.length > 0) {
-      // push (no replace): deja / en el historial para que "atrás" vuelva al landing
-      if (pathname === '/') {
-        router.push('/dashboard')
-      }
+    if (!wallet?.stellarAddress) {
+      didRedirectToDashboardRef.current = false
+      return
     }
+    if (!mounted || loading || creating) return
+    if (pathname !== '/' || didRedirectToDashboardRef.current) return
+    didRedirectToDashboardRef.current = true
+    router.replace('/dashboard')
   }, [mounted, loading, creating, wallet?.stellarAddress, router, pathname])
 
   const mxneAssets = useMemo(() => {
@@ -119,7 +120,7 @@ export default function AcceslyWalletPanel() {
                 <Button onClick={() => refreshWallet()} className="rounded-full">
                   Refresh wallet
                 </Button>
-                <Button onClick={() => refreshBalance()} variant="outline" className="rounded-full">
+                <Button onClick={() => void refreshBalance()} variant="outline" className="rounded-full">
                   Refresh balances
                 </Button>
                 <Button onClick={() => disconnect()} variant="outline" className="rounded-full">
@@ -135,10 +136,10 @@ export default function AcceslyWalletPanel() {
             Detalles técnicos (dev)
           </summary>
           <div className="mt-4 space-y-2">
-            <p>1) XLM: usa `balance` y `sendPayment` para fondeo/comisiones.</p>
-            <p>2) MXNe: detecta asset code `MXNE` en `assetBalances` antes de flujo de inversión.</p>
-            <p>3) Etherfuse/CETES: construye TX con Stellar SDK, firma con `signTransaction` o `signAndSubmit`.</p>
-            <p>4) Restricciones Accesly: source account debe ser `wallet.stellarAddress`; sin `accountMerge`, sin `FeeBump`.</p>
+            <p>1) XLM: balance nativo vía API Pollar (`/wallet/balance`).</p>
+            <p>2) MXNe: detecta asset code `MXNE` en balances antes de flujo de inversión.</p>
+            <p>3) Etherfuse/CETES: construye TX con Stellar SDK; firma con `buildTx` + `signAndSubmitTx` de Pollar.</p>
+            <p>4) Cuenta fuente on-chain: `wallet.stellarAddress` (G…).</p>
           </div>
         </details>
       </div>

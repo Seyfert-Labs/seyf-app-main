@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>Reporte formal — Entrevistas CEDA y retroalimentación para Seyf</title>
+    <style>
+      :root {
+        --bg: #ffffff;
+        --fg: #0f172a;
+        --muted: #475569;
+        --border: #e2e8f0;
+        --soft: #f8fafc;
+        --soft-2: #f1f5f9;
+        --accent: #0ea5e9;
+        --danger: #dc2626;
+        --warn: #b45309;
+        --ok: #16a34a;
+        --shadow: 0 1px 2px rgba(2, 6, 23, 0.06), 0 6px 20px rgba(2, 6, 23, 0.06);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial,
+          "Apple Color Emoji", "Segoe UI Emoji";
+      }
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+
+      .page {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 28px 20px 48px;
+      }
+
+      .header {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        justify-content: space-between;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 18px 18px;
+        background: linear-gradient(180deg, var(--soft), #ffffff);
+        box-shadow: var(--shadow);
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+      }
+      .logo {
+        width: 44px;
+        height: 44px;
+        flex: 0 0 auto;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        background: #0a0a0a;
+        display: grid;
+        place-items: center;
+      }
+      .brand h1 {
+        margin: 0;
+        font-size: 16px;
+        letter-spacing: 0.2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .brand p {
+        margin: 2px 0 0;
+        color: var(--muted);
+        font-size: 12.5px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .meta {
+        text-align: right;
+        color: var(--muted);
+        font-size: 12.5px;
+        line-height: 1.35;
+      }
+      .meta strong {
+        color: var(--fg);
+        font-weight: 650;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1.25fr 0.75fr;
+        gap: 18px;
+        margin-top: 18px;
+      }
+      @media (max-width: 920px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+        .meta {
+          text-align: left;
+        }
+        .header {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+      }
+
+      .card {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: #fff;
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+      .card .hd {
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--border);
+        background: var(--soft);
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .card .hd h2 {
+        margin: 0;
+        font-size: 13.5px;
+        letter-spacing: 0.2px;
+      }
+      .card .hd .tag {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .card .bd {
+        padding: 14px;
+      }
+
+      .toc a {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 10px;
+        border-radius: 10px;
+        border: 1px solid transparent;
+      }
+      .toc a:hover {
+        background: var(--soft);
+        border-color: var(--border);
+        text-decoration: none;
+      }
+      .toc .k {
+        font-weight: 650;
+      }
+      .toc .v {
+        color: var(--muted);
+        font-size: 12.5px;
+      }
+
+      .section {
+        margin-top: 18px;
+      }
+      .section h2 {
+        margin: 0 0 10px;
+        font-size: 16px;
+        letter-spacing: 0.2px;
+      }
+      .section h3 {
+        margin: 14px 0 8px;
+        font-size: 14.5px;
+      }
+      .section p {
+        margin: 10px 0;
+        color: var(--fg);
+      }
+      .section .muted {
+        color: var(--muted);
+      }
+      .section ul {
+        margin: 10px 0 0;
+        padding-left: 18px;
+      }
+      .section li {
+        margin: 6px 0;
+      }
+
+      .callouts {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      @media (max-width: 920px) {
+        .callouts {
+          grid-template-columns: 1fr;
+        }
+      }
+      .callout {
+        border: 1px solid var(--border);
+        border-left-width: 5px;
+        border-radius: 14px;
+        padding: 12px 12px;
+        background: linear-gradient(180deg, var(--soft), #fff);
+      }
+      .callout h4 {
+        margin: 0 0 6px;
+        font-size: 13.5px;
+        letter-spacing: 0.15px;
+      }
+      .callout p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .callout.ok {
+        border-left-color: var(--ok);
+      }
+      .callout.warn {
+        border-left-color: var(--warn);
+      }
+      .callout.danger {
+        border-left-color: var(--danger);
+      }
+      .callout.info {
+        border-left-color: var(--accent);
+      }
+
+      .table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+      }
+      .table th,
+      .table td {
+        padding: 10px 10px;
+        border-bottom: 1px solid var(--border);
+        vertical-align: top;
+      }
+      .table th {
+        text-align: left;
+        background: var(--soft);
+        font-size: 12.5px;
+        color: var(--muted);
+        letter-spacing: 0.2px;
+        font-weight: 650;
+      }
+      .table tr:last-child td {
+        border-bottom: none;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: var(--soft-2);
+        color: var(--muted);
+        font-size: 12px;
+        white-space: nowrap;
+      }
+      .pill strong {
+        color: var(--fg);
+        font-weight: 650;
+      }
+      .hr {
+        height: 1px;
+        background: var(--border);
+        margin: 14px 0;
+      }
+      .quote {
+        border-left: 4px solid var(--border);
+        padding: 8px 12px;
+        background: var(--soft);
+        border-radius: 10px;
+        color: var(--muted);
+      }
+      .footer {
+        margin-top: 18px;
+        color: var(--muted);
+        font-size: 12.5px;
+      }
+
+      @media print {
+        .page {
+          padding: 0;
+        }
+        .header,
+        .card,
+        .callout,
+        .table {
+          box-shadow: none;
+        }
+        a {
+          text-decoration: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header class="header">
+        <div class="brand">
+          <div class="logo" aria-hidden="true">
+            <!-- Logo Seyf (embebido desde public/icon.svg). -->
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" width="44" height="44">
+              <rect width="32" height="32" rx="8" fill="#0a0a0a" />
+              <path
+                fill="#fafafa"
+                d="M8 22V10h4.2l3.4 7.2L19 10h4.2v12h-2.9v-7l-2.8 5.5h-2.2L12.8 15v7H8z"
+              />
+            </svg>
+          </div>
+          <div style="min-width: 0">
+            <h1>Reporte formal — Entrevistas en CEDA y retroalimentación estratégica para Seyf</h1>
+            <p>Documento base: “Reporte Entrevistas” (12 páginas) — síntesis, hallazgos y recomendaciones accionables.</p>
+          </div>
+        </div>
+        <div class="meta">
+          <div><strong>Proyecto</strong>: Seyf</div>
+          <div><strong>Área</strong>: Investigación de usuario / Estrategia producto</div>
+          <div><strong>Fecha</strong>: 2026-04-15</div>
+        </div>
+      </header>
+
+      <section class="grid" aria-label="Resumen y tabla de contenidos">
+        <article class="card">
+          <div class="hd">
+            <h2>Resumen ejecutivo</h2>
+            <div class="tag">Lectura rápida (2–3 min)</div>
+          </div>
+          <div class="bd">
+            <p>
+              Las entrevistas confirman que la <strong>Central de Abasto (CEDA)</strong> opera sobre un sistema de
+              <strong>capital de trabajo informal</strong> donde el “crédito” más usado no proviene de bancos, sino de
+              <strong>proveedores</strong> (plazos típicos de <strong>8 días</strong> a costo cero y <strong>30 días</strong> con
+              prima implícita en el precio). El dinero viaja lento; el producto, rápido.
+            </p>
+            <div class="callouts" style="margin-top: 12px">
+              <div class="callout info">
+                <h4>Tesis principal</h4>
+                <p>
+                  Seyf no debe “competir contra préstamos bancarios” como primer wedge; debe resolver
+                  <strong>oxígeno operativo</strong> entre reabasto, cobro y pagos a proveedor.
+                </p>
+              </div>
+              <div class="callout warn">
+                <h4>Implicación directa</h4>
+                <p>
+                  El producto debe alinearse a plazos del mercado (8–30 días), operar con
+                  <strong>transferencias</strong> y no depender de terminal/tarjeta para despegar.
+                </p>
+              </div>
+              <div class="callout danger">
+                <h4>Riesgo crítico</h4>
+                <p>
+                  La muestra es principalmente <strong>empleados/encargados</strong>, no dueños (“patrones”); el dolor es
+                  real, pero el poder de adopción y el capital pueden estar fuera de la entrevista.
+                </p>
+              </div>
+              <div class="callout ok">
+                <h4>Oportunidad concreta</h4>
+                <p>
+                  “Fondo” + adelanto corto (8/15/30 días) y/o financiamiento de cuentas por cobrar donde la bodega
+                  también otorga crédito a minoristas (B2B2C).
+                </p>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <aside class="card">
+          <div class="hd">
+            <h2>Contenido</h2>
+            <div class="tag">Índice</div>
+          </div>
+          <div class="bd toc">
+            <a href="#contexto"><span class="k">1) Contexto y alcance</span><span class="v">Base documental</span></a>
+            <a href="#hallazgos"><span class="k">2) Hallazgos del campo</span><span class="v">Qué se observó</span></a>
+            <a href="#brillante"><span class="k">3) Lo Brillante</span><span class="v">Oro</span></a>
+            <a href="#reality"><span class="k">4) Reality Check</span><span class="v">Focos rojos</span></a>
+            <a href="#estrategia"><span class="k">5) Ángulos de ataque</span><span class="v">Opciones</span></a>
+            <a href="#recomendaciones"><span class="k">6) Recomendaciones</span><span class="v">Qué construir</span></a>
+          </div>
+        </aside>
+      </section>
+
+      <section id="contexto" class="section card" aria-label="Contexto y alcance">
+        <div class="hd">
+          <h2>1) Contexto y alcance</h2>
+          <div class="tag">Fuente: reporte de entrevistas</div>
+        </div>
+        <div class="bd">
+          <p class="muted">
+            Este reporte consolida hallazgos del documento “Reporte Entrevistas” y agrega retroalimentación brutal y
+            accionable orientada al desarrollo del producto Seyf (posicionamiento, riesgo y priorización).
+          </p>
+          <div class="hr"></div>
+          <table class="table" aria-label="Entrevistas incluidas">
+            <thead>
+              <tr>
+                <th>Entidad</th>
+                <th>Rol entrevistado</th>
+                <th>Pagos aceptados (observado)</th>
+                <th>Crédito proveedor</th>
+                <th>Notas relevantes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Super Conasuper</strong></td>
+                <td>Empleado</td>
+                <td><span class="pill"><strong>N/D</strong> (no profundizó)</span></td>
+                <td><span class="pill"><strong>Sí</strong> (proveedor)</span></td>
+                <td>Sin detalle por limitación de rol; ante préstamo personal usaría banca tradicional.</td>
+              </tr>
+              <tr>
+                <td><strong>Kang Shi Fu (Asia Union México)</strong></td>
+                <td>Encargada (Leslie)</td>
+                <td><span class="pill"><strong>Efectivo</strong></span> <span class="pill"><strong>Transferencia</strong></span></td>
+                <td><span class="pill"><strong>No</strong> personal</span></td>
+                <td>
+                  Renta mensual fija ~80k MXN. Permisos CEDA para casi todo. Problemas de reabasto por aranceles / socios.
+                  Comentó que Seyf sería rentable “por tener un fondo”.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Semillas Selectas Uribe</strong></td>
+                <td>Encargado (Braulio)</td>
+                <td><span class="pill"><strong>Transferencia</strong></span> <span class="pill"><strong>Efectivo</strong></span></td>
+                <td><span class="pill"><strong>Sí</strong> (8 días / 30 días)</span></td>
+                <td>
+                  Ventas estimadas: ~2 toneladas/día de arroz. Esquema 50/50 (contado + deuda) frecuente. Sin ahorro/prestaciones.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Estación 68 (Semillas y Granos)</strong></td>
+                <td>Sin nombre</td>
+                <td><span class="pill"><strong>Transferencia</strong></span> <span class="pill"><strong>Efectivo</strong></span></td>
+                <td><span class="pill"><strong>Sí</strong> (8–30 días)</span></td>
+                <td>
+                  Implementaría terminal por demanda. Además, otorgan crédito a clientes: replican el modelo hacia abajo (B2B2C).
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Casa 5 Hermanos</strong></td>
+                <td>Encargado (nombre inconsistente)</td>
+                <td><span class="pill"><strong>Efectivo</strong></span></td>
+                <td><span class="pill"><strong>Sí</strong> (proveedor)</span></td>
+                <td>
+                  Cerrado a información; declaró que “los patrones no quieren” tarjeta aunque clientes lo pidan.
+                  Terminó dando un nombre distinto.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="footer">
+            Nota: “N/D” = no documentado con suficiente detalle en la entrevista. El reporte original contiene contexto adicional por entidad.
+          </p>
+        </div>
+      </section>
+
+      <section id="hallazgos" class="section card" aria-label="Hallazgos del campo">
+        <div class="hd">
+          <h2>2) Hallazgos del campo (lo que el documento ya demuestra)</h2>
+          <div class="tag">Síntesis del documento</div>
+        </div>
+        <div class="bd">
+          <h3>2.1 El “crédito” dominante es el de proveedores (capital de trabajo)</h3>
+          <p>
+            La operación cotidiana en la CEDA se apalanca sobre adelanto de mercancía por parte del proveedor. El reporte
+            documenta dos modalidades recurrentes:
+          </p>
+          <ul>
+            <li><strong>8 días (costo cero)</strong>: mismo precio; incentivo para rotación rápida.</li>
+            <li><strong>30 días (con prima)</strong>: aumento por kilo/centavos; “interés implícito” por el tiempo.</li>
+          </ul>
+
+          <h3>2.2 Medios de pago: efectivo y transferencia (tarjeta no es estándar)</h3>
+          <p>
+            En los casos observados, <strong>efectivo y transferencia</strong> dominan. En algunos locales existe demanda
+            de terminal por parte del cliente, pero la adopción no depende solo de “conveniencia”; hay resistencias
+            explícitas.
+          </p>
+
+          <h3>2.3 Fragilidad del colchón financiero (empleados) y ausencia de prestaciones</h3>
+          <p>
+            Varias entrevistas señalan ausencia de prestaciones y ahorro formal. La frase “TODO MI AHORRO ESTÁ AQUÍ”
+            (señalando bajo la terminal) es un indicador de inseguridad financiera personal y de informalidad operativa.
+          </p>
+
+          <h3>2.4 Choques externos: aranceles, reabasto, combustible</h3>
+          <p>
+            Se reportan problemas de stock por aranceles/entrada de socios, y alzas en costos logísticos por combustible.
+            El impacto se materializa en <strong>quiebres de inventario</strong> y ajustes de precio.
+          </p>
+        </div>
+      </section>
+
+      <section id="brillante" class="section card" aria-label="Lo Brillante">
+        <div class="hd">
+          <h2>3) Lo Brillante (El Oro de su Investigación)</h2>
+          <div class="tag">Lo que ya tienen y vale oro</div>
+        </div>
+        <div class="bd">
+          <h3>3.1 Mapearon el “Sistema de Crédito en la Sombra”</h3>
+          <p>
+            El esquema de cadena de crédito que documentaron es la radiografía exacta de las finanzas de la CEDA:
+            proveedores operan como prestamistas con <strong>8 días sin interés</strong> o <strong>30 días con prima</strong>
+            en precio. Ese patrón es el motor real del volumen.
+          </p>
+
+          <h3>3.2 Confirmaron el terror fiscal (el efectivo es rey)</h3>
+          <p>
+            La entrevista en Casa 5 Hermanos es reveladora: la inconsistencia de nombre (“Carlos/Ulices”) y la frase
+            “a los patrones no les gusta” cobrar con tarjeta aunque el cliente lo pida, apunta a que
+            <strong>minimizar exposición fiscal</strong> es un criterio de decisión, no un detalle.
+          </p>
+
+          <h3>3.3 El nulo colchón financiero de empleados</h3>
+          <p>
+            La falta de prestaciones y ahorro formal valida una crisis de liquidez y seguridad financiera personal en la
+            base de la pirámide. Esto abre un carril B2B2C (prestación/beneficio) y/o un carril de “fondo” de emergencia.
+          </p>
+
+          <div class="hr"></div>
+          <div class="quote">
+            “TODO MI AHORRO ESTÁ AQUÍ” (señalando debajo de la terminal de ventas) — indicador de informalidad y falta de
+            instrumentos de resguardo.
+          </div>
+        </div>
+      </section>
+
+      <section id="reality" class="section card" aria-label="Reality Check">
+        <div class="hd">
+          <h2>4) ⚠️ El Reality Check (Focos Rojos para Seyf)</h2>
+          <div class="tag">Riesgos de producto/mercado</div>
+        </div>
+        <div class="bd">
+          <h3>4.1 Están hablando con los peones, no con los reyes</h3>
+          <p>
+            El campo está sesgado hacia empleados/encargados. Ellos viven la falta de ahorro, pero no necesariamente
+            controlan el capital ni deciden adopción. Para un producto que canaliza capital hacia instrumentos como CETES,
+            el “patrón” importa: dueños que pagan rentas altas, mueven toneladas/día o controlan flujo.
+          </p>
+
+          <h3>4.2 El crédito del proveedor es más atractivo que el de Seyf</h3>
+          <p>
+            Para el bodeguero, el crédito del proveedor tiene dos ventajas brutales: <strong>inmediatez</strong> y
+            <strong>alineación con inventario</strong> (te adelantan mercancía). Si ya obtienen 8 días “a costo cero”,
+            Seyf no puede presentarse como “bloquea tu capital meses para obtener un adelanto pequeño”; perdería.
+          </p>
+
+          <div class="callouts" style="margin-top: 12px">
+            <div class="callout danger">
+              <h4>Riesgo de narrativa</h4>
+              <p>
+                “Blockchain/cripto” como pitch principal agrega fricción. El lenguaje ganador aquí es:
+                <strong>fondo</strong>, <strong>oxígeno</strong>, <strong>reabasto</strong>, <strong>puente 8–30 días</strong>.
+              </p>
+            </div>
+            <div class="callout warn">
+              <h4>Riesgo de instrumentación</h4>
+              <p>
+                Depender de tarjeta/terminal/instalaciones en CEDA es lento por permisos y voluntad de “patrones”.
+                Transferencia debe ser la ruta base.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="estrategia" class="section card" aria-label="Ángulos de ataque estratégicos">
+        <div class="hd">
+          <h2>5) 💡 Ángulos de Ataque Estratégico</h2>
+          <div class="tag">Opciones de wedge realistas</div>
+        </div>
+        <div class="bd">
+          <h3>5.1 Seyf como herramienta B2B2C para empleados (prestación sin fricción fiscal)</h3>
+          <p>
+            Si los dueños no quieren “bancarizar” el flujo principal, una vía es convertir Seyf en
+            <strong>prestación</strong>: caja de ahorro y adelanto para empleados (Leslie, Braulio). Esto ayuda a retener
+            talento y reduce rotación, sin obligar al patrón a “mover todo” al banco; puede iniciar con montos acotados.
+          </p>
+
+          <h3>5.2 El eslabón final: minoristas (el que sí necesita pagar de contado)</h3>
+          <p>
+            El diagrama muestra que las bodegas dan crédito a minoristas. El minorista que vende al menudeo suele estar
+            más bancarizado (o al menos más dispuesto a formalizar cobro) y necesita capital rápido. Seyf puede permitir
+            que el minorista <strong>pague de contado</strong> en la CEDA, obtenga mejor precio y reduzca fricción con la
+            bodega.
+          </p>
+
+          <h3>5.3 Financiar la “lentitud del dinero”: cuentas por cobrar / rotación</h3>
+          <p>
+            Donde la bodega otorga crédito a clientes, aparece un hueco claro: el producto se mueve, el dinero tarda.
+            Seyf puede posicionarse como herramienta para cubrir ese hueco (adelanto corto 8/15/30 días) con límites
+            basados en comportamiento.
+          </p>
+        </div>
+      </section>
+
+      <section id="recomendaciones" class="section card" aria-label="Recomendaciones para el MVP">
+        <div class="hd">
+          <h2>6) Recomendaciones accionables para Seyf (MVP y posicionamiento)</h2>
+          <div class="tag">Qué hacer primero</div>
+        </div>
+        <div class="bd">
+          <h3>6.1 Posicionamiento (lenguaje y propuesta)</h3>
+          <ul>
+            <li>
+              <strong>Vender “fondo” y “oxígeno”</strong>, no “inversión cripto”. La palabra “fondo” ya apareció de forma
+              orgánica como valoración positiva.
+            </li>
+            <li>
+              <strong>Alinear plazos</strong>: 8/15/30 días (y luego 45/60 si hay evidencia). El mercado ya está educado
+              en 8–30.
+            </li>
+            <li>
+              <strong>Canal base: transferencia</strong>. Tarjeta/terminal es un “nice to have” posterior.
+            </li>
+          </ul>
+
+          <h3>6.2 MVP sugerido (mínimo para validar valor)</h3>
+          <ul>
+            <li><strong>Fondo por apartados</strong>: renta, proveedor, gasolina, imprevistos.</li>
+            <li>
+              <strong>Adelanto corto</strong>: con reglas simples (p. ej. límite inicial bajo, crece por recurrencia de
+              depósitos/transferencias).
+            </li>
+            <li>
+              <strong>Cobro automático</strong> por transferencia (recordatorios + conciliación básica).
+            </li>
+          </ul>
+
+          <h3>6.3 Métricas que faltan (para que el siguiente campo se convierta en specs)</h3>
+          <p class="muted">
+            El reporte actual prueba patrones, pero no cuantifica el “gap de caja”. Para diseñar límites, pricing y riesgo,
+            hace falta medir: % ventas a crédito, días de cobro, morosidad, monto promedio “atorado”, frecuencia de compra,
+            y tamaño típico del faltante (monto y días).
+          </p>
+
+          <div class="hr"></div>
+          <p class="footer">
+            Este documento está listo para compartirse como HTML o imprimirse a PDF. Si deseas usar el logo 3D adjunto
+            (imagen), reemplaza el SVG del encabezado por una etiqueta <code>&lt;img&gt;</code> apuntando al archivo del
+            logo dentro de <code>public/</code>.
+          </p>
+        </div>
+      </section>
+
+      <p class="footer">
+        <strong>Fin del reporte.</strong> Uso sugerido: (1) imprimir a PDF, (2) anexar al PRD/MVP, (3) convertir las “métricas que faltan”
+        en checklist para el siguiente ciclo de entrevistas.
+      </p>
+    </main>
+  </body>
+</html>

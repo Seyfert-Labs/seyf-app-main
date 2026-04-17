@@ -13,6 +13,8 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
+    "@pollar/core": "^0.5.3",
+    "@pollar/react": "^0.5.3",
     "@radix-ui/react-accordion": "1.2.12",
     "@radix-ui/react-alert-dialog": "1.1.15",
     "@radix-ui/react-aspect-ratio": "1.1.8",
@@ -42,7 +44,6 @@
     "@radix-ui/react-tooltip": "1.2.8",
     "@stellar/stellar-sdk": "^14.6.1",
     "@vercel/analytics": "1.6.1",
-    "accesly": "^0.2.5",
     "autoprefixer": "^10.4.20",
     "canonicalize": "^2.1.0",
     "class-variance-authority": "^0.7.1",
