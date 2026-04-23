@@ -218,6 +218,8 @@ components/
   app/               # Product UI (dashboard, nav, sheets, …)
   providers/         # e.g. SeyfPollarProvider (`@pollar/react`)
   ui/                # Radix / shadcn-style primitives
+contracts/
+  advance/           # Soroban contract for yield-advance rules and cycle buffer logic
 lib/
   etherfuse/         # HTTP client, quotes, orders, onboarding
   seyf/              # View models, guards, Horizon, polling, CETES, movements
