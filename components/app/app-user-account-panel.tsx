@@ -186,12 +186,12 @@ export default function AppUserAccountPanel({ embedded = false }: AppUserAccount
   return (
     <section className={`overflow-hidden ${shell}`}>
       {balanceError ? (
-        <div className="border-b border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+        <div className="border-b border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-100">
           <p className="font-semibold">No se pudieron cargar los saldos</p>
-          <p className="mt-1 text-amber-100/85">
+          <p className="mt-1 text-amber-800/85 dark:text-amber-100/85">
             {balanceError}. Si ves «Origin not allowed», añade en Pollar Dashboard la URL exacta de esta
-            pestaña (p. ej. <code className="rounded bg-black/30 px-1">http://localhost:3000</code> y{' '}
-            <code className="rounded bg-black/30 px-1">http://127.0.0.1:3000</code>).
+            pestaña (p. ej. <code className="rounded bg-foreground/10 px-1">http://localhost:3000</code> y{' '}
+            <code className="rounded bg-foreground/10 px-1">http://127.0.0.1:3000</code>).
           </p>
         </div>
       ) : null}
@@ -206,19 +206,19 @@ export default function AppUserAccountPanel({ embedded = false }: AppUserAccount
             <h2 className="text-sm font-bold text-foreground">Tu perfil</h2>
             <p className="truncate text-xs text-muted-foreground">Pollar · Stellar</p>
           </div>
-          <p className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/25 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-violet-100/90">
+          <p className="inline-flex items-center gap-1 rounded-full border border-violet-500/20 bg-background/65 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-violet-700 dark:border-white/15 dark:bg-black/25 dark:text-violet-100/90">
             <ShieldCheck className="size-3" />
             Activo
           </p>
         </div>
         <div className="relative mt-3 grid grid-cols-2 gap-2">
-          <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-2">
-            <p className="text-[10px] font-medium uppercase tracking-wide text-violet-100/80">Red</p>
-            <p className="mt-0.5 text-xs font-semibold text-white">{formatNetwork()}</p>
+          <div className="rounded-xl border border-violet-500/15 bg-background/55 px-3 py-2 dark:border-white/10 dark:bg-black/20">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground dark:text-violet-100/80">Red</p>
+            <p className="mt-0.5 text-xs font-semibold text-foreground dark:text-white">{formatNetwork()}</p>
           </div>
-          <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-2">
-            <p className="text-[10px] font-medium uppercase tracking-wide text-violet-100/80">Cuenta desde</p>
-            <p className="mt-0.5 truncate text-xs font-semibold text-white">{memberSince}</p>
+          <div className="rounded-xl border border-violet-500/15 bg-background/55 px-3 py-2 dark:border-white/10 dark:bg-black/20">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground dark:text-violet-100/80">Cuenta desde</p>
+            <p className="mt-0.5 truncate text-xs font-semibold text-foreground dark:text-white">{memberSince}</p>
           </div>
         </div>
       </div>

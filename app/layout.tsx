@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import { ThemeProvider } from '@/components/theme-provider'
 import { PublicMobileHistorySeed } from '@/components/app/public-mobile-history-seed'
 import SeyfPollarProvider from '@/components/providers/pollar-provider'
 import './globals.css'
@@ -29,10 +30,12 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="es" className={`dark ${inter.variable}`}>
+    <html lang="es" className={inter.variable} suppressHydrationWarning>
       <body className="min-h-dvh font-sans antialiased">
-        <PublicMobileHistorySeed />
-        <SeyfPollarProvider>{children}</SeyfPollarProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <PublicMobileHistorySeed />
+          <SeyfPollarProvider>{children}</SeyfPollarProvider>
+        </ThemeProvider>
         <Analytics />
       </body>
     </html>

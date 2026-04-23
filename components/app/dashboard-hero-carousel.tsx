@@ -229,7 +229,7 @@ export function DashboardHeroCarousel({ data }: { data: HeroData }) {
                     aria-hidden
                   />
                 ) : cw.equivMxne != null ? (
-                  <p className="mt-2 text-sm font-bold leading-tight text-emerald-200/95">
+                  <p className="mt-2 text-sm font-bold leading-tight text-emerald-700 dark:text-emerald-200/95">
                     ≈ {formatMXNFull(cw.equivMxne)}{' '}
                     <span className="text-xs font-semibold text-muted-foreground">MXNe</span>
                   </p>

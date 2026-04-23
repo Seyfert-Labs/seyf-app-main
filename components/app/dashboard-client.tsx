@@ -50,9 +50,9 @@ function formatMontoOculto() {
 }
 
 function movementEstadoBadgeClass(estado: UserMovement['estado']): string {
-  if (estado === 'completado') return 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/25'
-  if (estado === 'fallido') return 'bg-rose-500/15 text-rose-300 ring-rose-500/25'
-  return 'bg-amber-500/15 text-amber-200 ring-amber-500/25'
+  if (estado === 'completado') return 'bg-emerald-500/15 text-emerald-700 ring-emerald-500/25 dark:text-emerald-300'
+  if (estado === 'fallido') return 'bg-rose-500/15 text-rose-700 ring-rose-500/25 dark:text-rose-300'
+  return 'bg-amber-500/15 text-amber-700 ring-amber-500/25 dark:text-amber-200'
 }
 
 function formatMovementMeta(mov: UserMovement): string {
@@ -408,19 +408,19 @@ export default function DashboardClient({
             </span>
           </Link>
 
-          <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-violet-600/25 via-indigo-900/20 to-card p-4 shadow-inner ring-1 ring-violet-500/10">
+          <div className="relative overflow-hidden rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-500/[0.14] via-indigo-500/[0.1] to-card p-4 shadow-inner ring-1 ring-violet-500/10 dark:border-white/10 dark:from-violet-600/25 dark:via-indigo-900/20">
             <div className="flex items-center gap-3">
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-sm">
-                <Wallet className="size-6 text-violet-100" strokeWidth={2} />
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-secondary/80 ring-1 ring-border backdrop-blur-sm dark:bg-white/10 dark:ring-white/10">
+                <Wallet className="size-6 text-violet-600 dark:text-violet-100" strokeWidth={2} />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200/90">
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-violet-700 dark:text-violet-200/90">
                   Saldo MXNe
                 </p>
-                <p className="mt-0.5 text-2xl font-black tabular-nums tracking-tight text-white">
+                <p className="mt-0.5 text-2xl font-black tabular-nums tracking-tight text-foreground dark:text-white">
                   {hideBalances ? formatMontoOculto() : formatMXNFull(mxne)}
                 </p>
-                <p className="mt-1 text-[11px] text-violet-100/75">Tu posición principal</p>
+                <p className="mt-1 text-[11px] text-muted-foreground dark:text-violet-100/75">Tu posición principal</p>
               </div>
             </div>
           </div>
@@ -439,7 +439,7 @@ export default function DashboardClient({
             </div>
             <div className="rounded-2xl border border-border bg-secondary/60 p-3.5 ring-1 ring-border/60">
               <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-foreground/5">
-                <Zap className="size-4 text-amber-200/90" strokeWidth={2.25} />
+                <Zap className="size-4 text-amber-600 dark:text-amber-200/90" strokeWidth={2.25} />
               </div>
               <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
                 Adelanto
@@ -452,17 +452,17 @@ export default function DashboardClient({
         </div>
       </section>
 
-      <section className="relative overflow-hidden rounded-[1.6rem] border border-violet-400/25 bg-gradient-to-br from-violet-700/35 via-indigo-700/25 to-sky-700/20 p-5 shadow-[0_16px_45px_rgba(76,29,149,0.35)]">
+      <section className="relative overflow-hidden rounded-[1.6rem] border border-violet-500/20 bg-gradient-to-br from-violet-100 via-indigo-100 to-sky-100 p-5 shadow-[0_16px_45px_rgba(76,29,149,0.16)] dark:border-violet-400/25 dark:from-violet-700/35 dark:via-indigo-700/25 dark:to-sky-700/20 dark:shadow-[0_16px_45px_rgba(76,29,149,0.35)]">
         <div className="pointer-events-none absolute -right-14 -top-20 h-44 w-44 rounded-full bg-violet-400/25 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-20 -left-12 h-40 w-40 rounded-full bg-cyan-400/20 blur-3xl" />
         <div className="relative">
-          <div className="inline-flex items-center rounded-full border border-violet-200/25 bg-black/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-violet-100/90">
+          <div className="inline-flex items-center rounded-full border border-violet-500/20 bg-background/65 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-violet-700 dark:border-violet-200/25 dark:bg-black/20 dark:text-violet-100/90">
             Adelanto disponible
           </div>
-          <p className="mt-2 text-3xl font-black tabular-nums tracking-tight text-white">
+          <p className="mt-2 text-3xl font-black tabular-nums tracking-tight text-foreground dark:text-white">
           {hideBalances ? formatMontoOculto() : formatMXNFull(liveVm.adelantableMxn)}
           </p>
-          <p className="mt-1.5 text-xs leading-relaxed text-violet-100/80">
+          <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground dark:text-violet-100/80">
             Recibe parte de tu rendimiento hoy, sin retirar tu ahorro.
           </p>
           <div className="mt-3 grid grid-cols-3 gap-2">
@@ -473,19 +473,19 @@ export default function DashboardClient({
             ].map((item) => (
               <div
                 key={item.label}
-                className="rounded-xl border border-white/15 bg-black/20 px-2.5 py-2 text-center backdrop-blur-[2px]"
+                className="rounded-xl border border-violet-500/15 bg-background/55 px-2.5 py-2 text-center backdrop-blur-[2px] dark:border-white/15 dark:bg-black/20"
               >
-                <p className="text-[10px] text-violet-100/75">{item.label}</p>
-                <p className="mt-0.5 text-[11px] font-bold text-white">{item.value}</p>
+                <p className="text-[10px] text-muted-foreground dark:text-violet-100/75">{item.label}</p>
+                <p className="mt-0.5 text-[11px] font-bold text-foreground dark:text-white">{item.value}</p>
               </div>
             ))}
           </div>
           <Link href="/adelanto" className="mt-4 block">
-            <Button className="h-12 w-full rounded-full bg-white text-base font-black text-violet-950 shadow-[0_12px_30px_rgba(255,255,255,0.22)] hover:bg-white/90">
+            <Button className="h-12 w-full rounded-full text-base font-black">
               Pedir adelanto
             </Button>
           </Link>
-          <p className="mt-2 text-center text-[11px] text-violet-100/70">
+          <p className="mt-2 text-center text-[11px] text-muted-foreground dark:text-violet-100/70">
             Simula monto, tasa y plazo en el siguiente paso.
           </p>
         </div>
@@ -512,7 +512,7 @@ export default function DashboardClient({
 
       {showEtherfuseRampDev && (
         <section className="rounded-[1.25rem] border border-dashed border-amber-500/25 bg-amber-500/[0.06] p-4 space-y-2">
-          <p className="text-xs font-bold text-amber-200/90">Solo desarrollo</p>
+          <p className="text-xs font-bold text-amber-700 dark:text-amber-200/90">Solo desarrollo</p>
           <Link
             href="/anadir"
             className="block text-sm font-semibold text-foreground underline-offset-4 hover:underline"
@@ -535,7 +535,7 @@ export default function DashboardClient({
       )}
 
       <section className="flex gap-3 rounded-[1.25rem] border border-amber-500/20 bg-amber-500/[0.07] p-4">
-        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-amber-200">
+        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-200">
           <span className="text-sm font-bold">!</span>
         </div>
         <div className="min-w-0">
@@ -545,7 +545,7 @@ export default function DashboardClient({
           </p>
           <Link
             href="/identidad"
-            className="mt-2 inline-block text-xs font-bold text-amber-200/90 underline-offset-4 hover:underline"
+            className="mt-2 inline-block text-xs font-bold text-amber-700 underline-offset-4 hover:underline dark:text-amber-200/90"
           >
             Verificar ahora
           </Link>
