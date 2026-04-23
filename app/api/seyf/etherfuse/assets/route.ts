@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchRampableAssetsForWallet } from "@/lib/etherfuse/ramp-api";
+import { toErrorResponse } from "@/lib/seyf/api-error";
 import { getEtherfuseRampContext } from "@/lib/seyf/etherfuse-ramp-context";
 import { guardEtherfuseRampRoutes } from "@/lib/seyf/etherfuse-ramp-guard";
 
@@ -28,7 +29,6 @@ export async function GET() {
     });
     return NextResponse.json({ assets, contextSource: ctx.source });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Error al listar activos";
-    return NextResponse.json({ error: message }, { status: 502 });
+    return toErrorResponse(e, "etherfuse/assets");
   }
 }

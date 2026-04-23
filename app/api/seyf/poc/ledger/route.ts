@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { toErrorResponse } from "@/lib/seyf/api-error";
 import { isEtherfuseDevPanelEnabled } from "@/lib/seyf/etherfuse-dev-panel";
 import {
   getPocLedgerSnapshot,
@@ -92,7 +93,6 @@ export async function POST(req: Request) {
     }
     return res;
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Error";
-    return NextResponse.json({ error: message }, { status: 400 });
+    return toErrorResponse(e, "poc/ledger");
   }
 }
