@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { executeMvpPartnerOnramp } from "@/lib/etherfuse/mvp-onramp";
+import { toErrorResponse } from "@/lib/seyf/api-error";
 import { guardEtherfuseRampRoutes } from "@/lib/seyf/etherfuse-ramp-guard";
 
 const bodySchema = z.object({
@@ -46,7 +47,6 @@ export async function POST(req: Request) {
     });
     return NextResponse.json(result);
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Error en onramp MVP";
-    return NextResponse.json({ error: message }, { status: 502 });
+    return toErrorResponse(e, "mvp/onramp");
   }
 }

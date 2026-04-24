@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { resolveMvpPartnerRampIdentity } from "@/lib/etherfuse/partner-accounts";
+import { toErrorResponse } from "@/lib/seyf/api-error";
 import { guardEtherfuseRampRoutes } from "@/lib/seyf/etherfuse-ramp-guard";
 
 function maskPk(pk: string) {
@@ -24,7 +25,6 @@ export async function GET() {
       customerId: id.customerId,
     });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Error";
-    return NextResponse.json({ error: message }, { status: 502 });
+    return toErrorResponse(e, "mvp/account");
   }
 }

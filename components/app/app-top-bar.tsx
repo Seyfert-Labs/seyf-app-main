@@ -57,6 +57,7 @@ export default function AppTopBar() {
                   Inicio
                 </Link>
               </SheetClose>
+              <ThemeToggle />
               <AppUserAccountPanel />
               <div className="mt-6 border-t border-border pt-4">
                 <ThemeToggle />

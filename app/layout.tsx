@@ -4,6 +4,7 @@ import { Analytics } from '@vercel/analytics/next'
 import { ThemeProvider } from '@/components/theme-provider'
 import { PublicMobileHistorySeed } from '@/components/app/public-mobile-history-seed'
 import SeyfPollarProvider from '@/components/providers/pollar-provider'
+import { ThemeProvider } from '@/components/theme-provider'
 import './globals.css'
 
 const inter = Inter({
@@ -30,13 +31,13 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="es" className={inter.variable} suppressHydrationWarning>
+    <html lang="es" suppressHydrationWarning className={inter.variable}>
       <body className="min-h-dvh font-sans antialiased">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <PublicMobileHistorySeed />
           <SeyfPollarProvider>{children}</SeyfPollarProvider>
+          <Analytics />
         </ThemeProvider>
-        <Analytics />
       </body>
     </html>
   )

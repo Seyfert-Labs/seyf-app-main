@@ -5,6 +5,7 @@ import {
   fetchOrderDetailsWithRetry,
   pickOrderDisplayFields,
 } from "@/lib/etherfuse/orders-api";
+import { toErrorMessage, toErrorResponse } from "@/lib/seyf/api-error";
 import { isEtherfuseDevPanelEnabled } from "@/lib/seyf/etherfuse-dev-panel";
 import { guardEtherfuseRampRoutes } from "@/lib/seyf/etherfuse-ramp-guard";
 
@@ -44,16 +45,22 @@ export async function POST(req: Request) {
       body: JSON.stringify({ orderId }),
     });
     const { json: simJson, text } = await etherfuseReadBody(fr);
-    const simulateFiat = fr.ok
-      ? { ok: true as const, result: simJson }
-      : { ok: false as const, status: fr.status, error: text.slice(0, 500) };
+    let simulateFiat: { ok: true; result: unknown } | { ok: false; status: number; error: string };
+    if (fr.ok) {
+      simulateFiat = { ok: true as const, result: simJson };
+    } else {
+      console.error("[seyf/mxn-cetes/confirm] fiat_received error:", text.slice(0, 500));
+      simulateFiat = { ok: false as const, status: fr.status, error: "Sandbox provider error" };
+    }
 
     let orderSnapshot: unknown = null;
     let orderFetchError: string | null = null;
     try {
       orderSnapshot = await fetchOrderDetailsWithRetry(orderId);
     } catch (e) {
-      orderFetchError = e instanceof Error ? e.message : String(e);
+      const msg = toErrorMessage(e);
+      console.error("[seyf/mxn-cetes/confirm] orderFetch failed:", msg);
+      orderFetchError = msg;
     }
 
     const orderDisplay = orderSnapshot
@@ -67,9 +74,6 @@ export async function POST(req: Request) {
       orderFetchError,
     });
   } catch (e) {
-    const message =
-      e instanceof Error ? e.message : "Error al confirmar onramp sandbox";
-    console.error("[mxn-cetes/confirm]", message);
-    return NextResponse.json({ error: message }, { status: 502 });
+    return toErrorResponse(e, "mxn-cetes/confirm");
   }
 }

@@ -9,6 +9,7 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",
+    "test:notifications": "node --test --experimental-strip-types lib/seyf/notifications/notify.test.ts",
     "etherfuse:verify": "node scripts/verify-etherfuse.mjs"
   },
   "dependencies": {

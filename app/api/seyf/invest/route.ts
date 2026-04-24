@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { runMockAutoInvest } from '@/lib/seyf/investment-mvp'
+import { notifyUser } from '@/lib/seyf/notifications/notify'
 
 const bodySchema = z.object({
   depositId: z.string().min(1),
@@ -33,6 +34,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
   }
 
-  const run = await runMockAutoInvest(parsed.data)
-  return NextResponse.json({ ok: true, run })
+  const result = await runMockAutoInvest(parsed.data)
+
+  if (result.createdNew) {
+    void notifyUser(parsed.data.userId, 'deposit_deployed', {
+      depositId: parsed.data.depositId,
+      amountMxn: parsed.data.amountMxn,
+      instrumentLabel: 'CETES',
+    }).catch((error) => {
+      console.error('[seyf][notifications] deposit_deployed', error)
+    })
+  }
+
+  return NextResponse.json({ ok: true, run: result.run, notificationQueued: result.createdNew })
 }

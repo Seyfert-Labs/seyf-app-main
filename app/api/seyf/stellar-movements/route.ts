@@ -3,6 +3,7 @@ import {
   fetchChainMovements,
   type HorizonNetwork,
 } from '@/lib/seyf/horizon-payments'
+import { toErrorResponse } from '@/lib/seyf/api-error'
 import { chainMovementToUserMovement } from '@/lib/seyf/stellar-chain-to-user-movement'
 import type { UserMovement } from '@/lib/seyf/user-movements-types'
 
@@ -57,7 +58,6 @@ export async function GET(req: Request) {
       headers: { 'Cache-Control': 'no-store, max-age=0' },
     })
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Horizon error'
-    return NextResponse.json({ error: msg }, { status: 502 })
+    return toErrorResponse(e, 'stellar-movements')
   }
 }

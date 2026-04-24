@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Check, Copy, LogOut, ShieldCheck, UserRound } from 'lucide-react'
 import { useSeyfWallet } from '@/lib/seyf/use-seyf-wallet'
 import { Button } from '@/components/ui/button'
+import { NotificationSettingsCard } from '@/components/app/notification-settings-card'
 import {
   SEYF_WALLET_BALANCE_EXTRA_DELAYS_MS,
   SEYF_WALLET_BALANCE_POLL_MS,
@@ -265,6 +266,10 @@ export default function AppUserAccountPanel({ embedded = false }: AppUserAccount
           </div>
         ))}
       </dl>
+
+      <div className="px-3 pb-3">
+        <NotificationSettingsCard />
+      </div>
 
       <div className="border-t border-border p-3">
         <Button

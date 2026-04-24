@@ -5,6 +5,7 @@ import {
   fetchRampableAssetsForWallet,
   pickOnrampTargetIdentifier,
 } from "@/lib/etherfuse/ramp-api";
+import { toErrorResponse } from "@/lib/seyf/api-error";
 import { getEtherfuseRampContext } from "@/lib/seyf/etherfuse-ramp-context";
 import { guardEtherfuseRampRoutes } from "@/lib/seyf/etherfuse-ramp-guard";
 
@@ -73,8 +74,6 @@ export async function POST(req: Request) {
       contextSource: ctx.source,
     });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Error al cotizar";
-    console.error("[quote/onramp]", message);
-    return NextResponse.json({ error: message }, { status: 502 });
+    return toErrorResponse(e, "quote/onramp");
   }
 }

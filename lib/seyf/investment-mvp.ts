@@ -72,13 +72,23 @@ export type RunMockInput = {
   amountMxn: number
 }
 
+export type RunMockAutoInvestResult = {
+  run: InvestmentRun
+  createdNew: boolean
+}
+
 /**
  * Idempotente por `depositId`: si ya existe run, devuelve la existente.
  */
-export async function runMockAutoInvest(input: RunMockInput): Promise<InvestmentRun> {
+export async function runMockAutoInvest(input: RunMockInput): Promise<RunMockAutoInvestResult> {
   const ledger = await loadLedger()
   const existing = ledger.runs.find((r) => r.depositId === input.depositId)
-  if (existing) return existing
+  if (existing) {
+    return {
+      run: existing,
+      createdNew: false,
+    }
+  }
 
   const id = `inv-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
   const amountMxne = input.amountMxn.toFixed(7)
@@ -98,7 +108,10 @@ export async function runMockAutoInvest(input: RunMockInput): Promise<Investment
 
   ledger.runs.unshift(run)
   await saveLedger(ledger)
-  return run
+  return {
+    run,
+    createdNew: true,
+  }
 }
 
 export async function listRuns(limit = 50): Promise<InvestmentRun[]> {
