@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchOrderDetails } from "@/lib/etherfuse/orders-api";
+import { toErrorResponse } from "@/lib/seyf/api-error";
 import { guardEtherfuseRampRoutes } from "@/lib/seyf/etherfuse-ramp-guard";
 
 /**
@@ -22,7 +23,6 @@ export async function GET(
     const order = await fetchOrderDetails(orderId);
     return NextResponse.json({ order });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Error";
-    return NextResponse.json({ error: message }, { status: 502 });
+    return toErrorResponse(e, "prueba/order");
   }
 }

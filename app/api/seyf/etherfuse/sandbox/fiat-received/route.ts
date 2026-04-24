@@ -36,9 +36,9 @@ export async function POST(req: Request) {
   })
   const { json: out, text } = await etherfuseReadBody(res)
   if (!res.ok) {
-    const msg = text.slice(0, 500)
+    console.error("[seyf/sandbox/fiat-received] provider error:", text.slice(0, 500), out)
     return NextResponse.json(
-      { error: msg, detail: out },
+      { error: "Sandbox provider error" },
       { status: res.status >= 400 && res.status < 600 ? res.status : 502 },
     )
   }

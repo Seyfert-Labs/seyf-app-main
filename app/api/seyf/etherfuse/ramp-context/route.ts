@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { resolveMvpPartnerCryptoWalletId } from "@/lib/etherfuse/partner-accounts";
+import { toErrorMessage } from "@/lib/seyf/api-error";
 import { getEtherfuseRampContext } from "@/lib/seyf/etherfuse-ramp-context";
 import { guardEtherfuseRampRoutes } from "@/lib/seyf/etherfuse-ramp-guard";
 
@@ -28,7 +29,9 @@ export async function GET() {
   try {
     cryptoWalletId = await resolveMvpPartnerCryptoWalletId(ctx.publicKey);
   } catch (e) {
-    cryptoWalletError = e instanceof Error ? e.message : String(e);
+    const msg = toErrorMessage(e);
+    console.error("[seyf/ramp-context] cryptoWallet lookup failed:", msg);
+    cryptoWalletError = msg;
   }
 
   return NextResponse.json({

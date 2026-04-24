@@ -3,6 +3,7 @@ import {
   fetchEtherfuseStablebonds,
   pickCetesStablebond,
 } from "@/lib/etherfuse/stablebonds-lookup";
+import { toErrorResponse } from "@/lib/seyf/api-error";
 
 export const revalidate = 300;
 
@@ -30,8 +31,6 @@ export async function GET(req: Request) {
 
     return NextResponse.json(data);
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Error stablebonds";
-    console.error("[lookup/stablebonds]", message);
-    return NextResponse.json({ error: message }, { status: 502 });
+    return toErrorResponse(e, "lookup/stablebonds");
   }
 }
