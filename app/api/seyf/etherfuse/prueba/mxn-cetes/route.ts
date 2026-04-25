@@ -18,6 +18,7 @@ import { toErrorMessage, toErrorResponse } from "@/lib/seyf/api-error";
 import { getEtherfuseRampContext } from "@/lib/seyf/etherfuse-ramp-context";
 import { isEtherfuseDevPanelEnabled } from "@/lib/seyf/etherfuse-dev-panel";
 import { guardEtherfuseRampRoutes } from "@/lib/seyf/etherfuse-ramp-guard";
+import { assertWalletActiveForUser } from "@/lib/seyf/wallet-provisioning";
 
 /**
  * Onramp MXN (fiat) → CETES en Stellar (sandbox / devnet).
@@ -91,6 +92,7 @@ export async function POST(req: Request) {
           contextSource = "mvp_env";
         }
       }
+      await assertWalletActiveForUser(identity.customerId);
     } catch (e) {
       return toErrorResponse(e, "mxn-cetes/identity");
     }

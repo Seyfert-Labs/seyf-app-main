@@ -13,6 +13,10 @@ import {
   normalizeStellarPublicKey,
 } from '@/lib/etherfuse/stellar-public-key'
 import { isKycTestResetEnabled } from '@/lib/seyf/kyc-test-reset'
+import {
+  assertWalletActiveForUser,
+  triggerWalletProvisioningForUser,
+} from '@/lib/seyf/wallet-provisioning'
 
 export type StartHostedOnboardingResult =
   | { ok: true; url: string }
@@ -66,4 +70,12 @@ export async function resetKycTestSession(): Promise<ResetKycTestSessionResult> 
   }
   await clearEtherfuseOnboardingSession()
   return { ok: true }
+}
+
+export async function triggerWalletProvisioning(userId: string): Promise<void> {
+  await triggerWalletProvisioningForUser(userId)
+}
+
+export async function assertWalletActive(userId: string): Promise<void> {
+  await assertWalletActiveForUser(userId)
 }

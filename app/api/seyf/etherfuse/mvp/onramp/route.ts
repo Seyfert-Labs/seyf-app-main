@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { executeMvpPartnerOnramp } from "@/lib/etherfuse/mvp-onramp";
+import { resolveMvpPartnerRampIdentity } from "@/lib/etherfuse/partner-accounts";
 import { toErrorResponse } from "@/lib/seyf/api-error";
 import { guardEtherfuseRampRoutes } from "@/lib/seyf/etherfuse-ramp-guard";
+import { assertWalletActiveForUser } from "@/lib/seyf/wallet-provisioning";
 
 const bodySchema = z.object({
   sourceAmount: z.string().min(1),
@@ -40,10 +42,13 @@ export async function POST(req: Request) {
   }
 
   try {
+    const identity = await resolveMvpPartnerRampIdentity();
+    await assertWalletActiveForUser(identity.customerId);
     const result = await executeMvpPartnerOnramp({
       sourceAmount: parsed.data.sourceAmount,
       amountMxn: mxn,
       forceNew: parsed.data.forceNew === true,
+      identity,
     });
     return NextResponse.json(result);
   } catch (e) {
