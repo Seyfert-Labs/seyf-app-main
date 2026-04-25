@@ -6,6 +6,7 @@ import { createMxOfframpOrder } from "@/lib/etherfuse/ramp-api";
 import { AppError, toErrorResponse } from "@/lib/seyf/api-error";
 import { getEtherfuseRampContext } from "@/lib/seyf/etherfuse-ramp-context";
 import { guardEtherfuseRampRoutes } from "@/lib/seyf/etherfuse-ramp-guard";
+import { assertWalletActiveForUser } from "@/lib/seyf/wallet-provisioning";
 
 const bodySchema = z.object({
   quoteId: z.string().uuid(),
@@ -45,6 +46,7 @@ export async function POST(req: Request) {
   }
 
   try {
+    await assertWalletActiveForUser(ctx.customerId);
     let cryptoWalletId: string | undefined;
     try {
       cryptoWalletId = await resolveMvpPartnerCryptoWalletId(ctx.publicKey);

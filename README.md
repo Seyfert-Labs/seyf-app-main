@@ -184,6 +184,10 @@ Copy **`.env.example`** → **`.env.local`**. Do not commit secrets.
 | `SEYF_ALLOW_KYC_RESET` | Enables “reset trial” UI on `/identidad` outside development. |
 | `SEYF_ETHERFUSE_DEV_PANEL` | `true` to show Etherfuse dev panels outside `NODE_ENV=development`. |
 | `SEYF_SPEI_DISPLAY_NAME` | Label for sandbox SPEI UI (default Etherfuse). |
+| `POLLAR_API_KEY` | Server-side Pollar API key for wallet provisioning (never expose as `NEXT_PUBLIC_*`). |
+| `POLLAR_API_BASE_URL` | Server-side Pollar base URL for wallet provisioning requests. |
+| `STELLAR_NETWORK` | Provisioning network for server wallet creation (`testnet` default). |
+| `ADMIN_ALERT_WEBHOOK_URL` | Optional admin alert webhook when wallet provisioning exhausts retries. |
 
 ### Client — `NEXT_PUBLIC_*`
 
@@ -279,6 +283,7 @@ scripts/             # verify-etherfuse.mjs, …
 |------------------|---------|
 | `/api/seyf/dashboard` | **DashboardViewModel** JSON. |
 | `/api/seyf/user-movements` | Movements (Etherfuse + optional MVP ledger depending on env). |
+| `/api/seyf/wallet/status` | Current wallet provisioning status for the authenticated `/identidad` session. |
 | `/api/seyf/stellar-movements?account=G...` | Horizon **testnet + mainnet** → `UserMovement[]`. |
 | `/api/seyf/etherfuse/*` | Quotes, orders, assets, ramp context, mxn-cetes trials, sandbox `fiat-received`, … |
 | `/api/seyf/invest`, `/api/seyf/invest/summary` | MVP invest (gated in prod without `SEYF_ALLOW_MOCK_INVEST`). |
