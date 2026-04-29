@@ -1,4 +1,4 @@
-import { getEtherfuseConfig } from "./config";
+import { getEtherfuseConfig } from "./config.ts";
 
 type EtherfuseFetchOptions = Omit<RequestInit, "headers"> & {
   headers?: HeadersInit;

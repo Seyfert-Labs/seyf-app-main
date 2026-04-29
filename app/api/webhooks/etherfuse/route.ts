@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { verifyEtherfuseWebhookSignature } from "@/lib/etherfuse/webhook-verify";
+import { pickRampOrderTransactionDetails } from "@/lib/etherfuse/orders-api";
+import { enqueueAutoDeployForDeposit } from "@/lib/seyf/spei-deposit-auto-deploy";
 
 export const runtime = "nodejs";
 
@@ -40,6 +42,26 @@ export async function POST(req: Request) {
         ? JSON.stringify(payload).slice(0, 2500)
         : String(payload),
     );
+  }
+
+  try {
+    const details = pickRampOrderTransactionDetails(payload);
+    const isOnramp = (details.orderType ?? "").toLowerCase() === "onramp";
+    const isConfirmed = (details.status ?? "").toLowerCase() === "confirmed";
+
+    if (isOnramp && isConfirmed && details.orderId) {
+      void enqueueAutoDeployForDeposit({
+        depositId: details.orderId,
+        amountMxn:
+          details.amountInFiat && Number.isFinite(Number(details.amountInFiat))
+            ? Number(details.amountInFiat)
+            : null,
+      }).catch((error) => {
+        console.error("[webhook etherfuse] enqueueAutoDeployForDeposit failed", error);
+      });
+    }
+  } catch (error) {
+    console.error("[webhook etherfuse] handler error", error);
   }
 
   return NextResponse.json({ ok: true });
