@@ -17,6 +17,10 @@ export async function GET() {
 
     const ctx = await getEtherfuseRampContext();
     if (!ctx) {
+      const productionMsg =
+        "Sin contexto rampa: completa /identidad para crear sesión onboarding real.";
+      const devMsg =
+        "Sin contexto rampa: completa /identidad o configura ETHERFUSE_MVP_* en desarrollo.";
       return NextResponse.json(
         {
           publicKey: "",
@@ -29,7 +33,7 @@ export async function GET() {
           kycStatus: null,
           kycApproved: false,
           kycReason:
-            "Sin contexto rampa: completa /identidad o configura ETHERFUSE_MVP_* en desarrollo.",
+            process.env.NODE_ENV === "production" ? productionMsg : devMsg,
         },
       );
     }

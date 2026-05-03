@@ -18,17 +18,18 @@ import {
   extractConfirmedTxSignatureFromOnrampPanelJson,
   pickRampOrderTransactionDetails,
 } from '@/lib/etherfuse/orders-api'
+import { cn } from '@/lib/utils'
 import { useEffect } from 'react'
+import {
+  type EtherfuseReadinessClientPayload,
+  etherfuseDepositBlockedCopy,
+  parseEtherfuseReadinessJson,
+} from '@/lib/seyf/etherfuse-readiness-cta'
 
 type RampContextPayload = {
   kycApproved: boolean
   kycStatus: string | null
   kycReason: string | null
-}
-
-type ReadinessPayload = {
-  onrampEnabled: boolean
-  reasons: string[]
 }
 
 export default function EtherfuseRampDevClient() {
@@ -42,7 +43,7 @@ export default function EtherfuseRampDevClient() {
   const [pendingManualOrderJson, setPendingManualOrderJson] = useState<string | null>(null)
   const [kycGate, setKycGate] = useState<RampContextPayload | null>(null)
   const [kycLoading, setKycLoading] = useState(true)
-  const [readiness, setReadiness] = useState<ReadinessPayload | null>(null)
+  const [readiness, setReadiness] = useState<EtherfuseReadinessClientPayload | null>(null)
 
   const run = useCallback(async (label: string, fn: () => Promise<void>) => {
     setErr(null)
@@ -85,21 +86,38 @@ export default function EtherfuseRampDevClient() {
       })
     fetch('/api/seyf/etherfuse/readiness')
       .then(async (r) => {
-        const j = (await r.json().catch(() => ({}))) as Partial<ReadinessPayload> & { error?: string }
+        const j = (await r.json().catch(() => ({}))) as { error?: string }
         if (!r.ok) {
           throw new Error(typeof j.error === 'string' ? j.error : `HTTP ${r.status}`)
         }
         if (cancelled) return
-        setReadiness({
-          onrampEnabled: j.onrampEnabled === true,
-          reasons: Array.isArray(j.reasons) ? j.reasons.filter((x): x is string => typeof x === 'string') : [],
-        })
+        const parsed = parseEtherfuseReadinessJson(j)
+        if (parsed) {
+          setReadiness(parsed)
+        } else {
+          setReadiness({
+            onrampEnabled: false,
+            reasons: ['Respuesta de readiness inesperada.'],
+            kycApproved: false,
+            agreementsAccepted: false,
+            bankAccountReady: false,
+            trustlineReady: false,
+            documentsUploaded: false,
+            webhookConfigured: false,
+          })
+        }
       })
       .catch((e) => {
         if (cancelled) return
         setReadiness({
           onrampEnabled: false,
           reasons: [e instanceof Error ? e.message : 'No pudimos calcular readiness.'],
+          kycApproved: false,
+          agreementsAccepted: false,
+          bankAccountReady: false,
+          trustlineReady: false,
+          documentsUploaded: false,
+          webhookConfigured: false,
         })
       })
     return () => {
@@ -245,7 +263,14 @@ export default function EtherfuseRampDevClient() {
   }, [speiDetails, pendingManualOrderJson, performFiatSimulation, run])
 
   const speiConfirmBusy = busy === 'spei-manual-confirm'
-  const canOperate = (readiness?.onrampEnabled === true) || (!kycLoading && kycGate?.kycApproved === true)
+  const canOperate = readiness?.onrampEnabled === true
+  const readinessReasons = readiness?.reasons ?? []
+  const depositBlocked = etherfuseDepositBlockedCopy({
+    readiness,
+    kycLoading,
+    mode: 'deposit',
+    fallbackReason: kycGate?.kycReason ?? null,
+  })
 
   const onrampTxSignature = useMemo(
     () => extractConfirmedTxSignatureFromOnrampPanelJson(fiatJson),
@@ -265,16 +290,32 @@ export default function EtherfuseRampDevClient() {
     return `${base}${encodeURIComponent(onrampTxSignature)}`
   }, [onrampTxSignature])
 
-  const timeline = useMemo(() => {
-    const generated = Boolean(speiDetails)
-    const transferConfirmed = Boolean(fiatJson)
-    const accredited = Boolean(onrampTxSignature)
+  /** Solo pasos en lenguaje de banca; se muestra después de tener CLABE. */
+  const depositProgress = useMemo(() => {
+    const hasInstructions = Boolean(speiDetails)
+    const bankSent = Boolean(fiatJson)
+    const credited = Boolean(onrampTxSignature)
     return [
-      { label: 'Datos SPEI generados', done: generated },
-      { label: 'Transferencia detectada', done: transferConfirmed },
-      { label: 'Conversión y acreditación', done: accredited },
+      {
+        label: 'Listo: tienes CLABE e importe',
+        description: 'Copia los datos en tu app del banco.',
+        done: hasInstructions,
+      },
+      {
+        label: 'Tu banco envió el dinero',
+        description:
+          'Esperamos tu transferencia. Si la app te lo pide, confirma abajo que ya enviaste.',
+        done: bankSent,
+      },
+      {
+        label: 'Saldo en tu cuenta Seyf',
+        description: 'Cuando acredite verás el movimiento.',
+        done: credited,
+      },
     ]
   }, [speiDetails, fiatJson, onrampTxSignature])
+
+  const showDepositProgress = Boolean(speiDetails || fiatJson || onrampTxSignature)
 
   return (
     <AppPageBody className="space-y-6 pt-4">
@@ -291,107 +332,142 @@ export default function EtherfuseRampDevClient() {
           </div>
           <h1 className="text-2xl font-black tracking-tight text-[#41534b] dark:text-white">Añadir fondos</h1>
           <p className="mt-1.5 text-sm text-[#7b8f86] dark:text-[#d2e9df]">
-            Genera tu CLABE y realiza la transferencia desde tu banca móvil.
+            Depósito por SPEI: mismo uso que transferir a una cuenta CLABE desde tu banco.
           </p>
         </div>
       </section>
+
+      {!canOperate ? (
+        <section className="rounded-[1.25rem] border border-amber-500/30 bg-amber-500/[0.08] p-4">
+          <p className="text-sm font-bold text-foreground">{depositBlocked.title}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{depositBlocked.lead}</p>
+          {readinessReasons.length ? (
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+              {readinessReasons.slice(0, 5).map((r) => (
+                <li key={r}>{r}</li>
+              ))}
+            </ul>
+          ) : null}
+          <div className="mt-3 flex flex-col gap-2">
+            <Link
+              href={depositBlocked.primaryLink.href}
+              className="inline-flex text-sm font-semibold text-foreground underline"
+            >
+              {depositBlocked.primaryLink.label}
+            </Link>
+            {depositBlocked.extraLinks.map((item) => (
+              <Link
+                key={item.href + item.label}
+                href={item.href}
+                className="inline-flex text-xs font-medium text-muted-foreground underline decoration-muted-foreground/60"
+              >
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {canOperate ? (
+        <section className="space-y-3 rounded-[1.5rem] border border-[#bfd6ca] bg-[#f4faf7] p-5 dark:border-border dark:bg-card/80">
+          <div>
+            <h2 className="text-base font-bold text-foreground">¿Cuánto vas a depositar?</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Escribe el monto en pesos. Generamos la cotización y te mostramos CLABE e importe exacto.
+            </p>
+          </div>
+          <Input
+            id="manual-amount"
+            inputMode="decimal"
+            value={sourceAmount}
+            onChange={(e) => setSourceAmount(e.target.value)}
+            placeholder="Ej. 500.00"
+            className="h-14 rounded-2xl border-[#c6dccf] bg-background px-4 text-lg tabular-nums font-semibold"
+            aria-label="Monto en pesos mexicanos"
+          />
+          <Input
+            id="manual-asset"
+            value={targetOverride}
+            onChange={(e) => setTargetOverride(e.target.value)}
+            placeholder="Activo (opcional, avanzado)"
+            className="h-11 rounded-xl border-border bg-background px-3 font-mono text-xs"
+            aria-label="Referencia de activo opcional"
+          />
+          <Button
+            type="button"
+            className="h-14 w-full rounded-2xl bg-foreground text-base font-bold text-background shadow-md"
+            disabled={!!busy}
+            onClick={() => void openManualSpeiReview()}
+          >
+            {busy === 'spei-manual-prepare' ? (
+              <>
+                <Spinner className="size-4 text-background" />
+                Preparando datos…
+              </>
+            ) : (
+              'Ver datos para transferir'
+            )}
+          </Button>
+        </section>
+      ) : null}
 
       <SpeiPaymentCard
         details={speiDetails}
         concept={speiDetails?.orderId ?? null}
       />
-      <section className="rounded-[1.25rem] border border-border bg-card/60 p-4">
-        <p className="text-sm font-bold text-foreground">Estado del depósito</p>
-        <div className="mt-3 space-y-2">
-          {timeline.map((step) => (
-            <div key={step.label} className="flex items-center justify-between rounded-lg border border-border/70 px-3 py-2">
-              <span className="text-sm text-foreground">{step.label}</span>
-              <span
-                className={cn(
-                  'text-xs font-semibold',
-                  step.done ? 'text-emerald-500' : 'text-muted-foreground',
-                )}
-              >
-                {step.done ? 'Completado' : 'Pendiente'}
-              </span>
-            </div>
-          ))}
-        </div>
-      </section>
-      {!canOperate ? (
-        <section className="rounded-[1.25rem] border border-amber-500/30 bg-amber-500/[0.08] p-4">
-          <p className="text-sm font-bold text-foreground">Verificación requerida</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {kycLoading
-              ? 'Validando estado KYC...'
-              : kycGate?.kycReason ??
-                'Necesitas aprobar KYC para generar CLABE y recibir tus datos de deposito.'}
-          </p>
-          {readiness?.reasons?.length ? (
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-muted-foreground">
-              {readiness.reasons.slice(0, 3).map((r) => (
-                <li key={r}>{r}</li>
-              ))}
-            </ul>
-          ) : null}
-          <Link href="/identidad" className="mt-3 inline-block text-sm font-semibold text-foreground underline">
-            Ir a verificar identidad
-          </Link>
-        </section>
-      ) : null}
+
       {speiDetails && pendingManualOrderJson ? (
         <Button
           type="button"
-          className="w-full"
+          variant="secondary"
+          className="h-12 w-full rounded-2xl border border-border font-semibold"
           disabled={!!busy || !canOperate}
           onClick={() => void confirmSpeiPayment()}
         >
           {speiConfirmBusy ? (
             <>
-              <Spinner className="size-4 text-background" />
+              <Spinner className="size-4" />
               Procesando…
             </>
           ) : (
-            'Ya hice la transferencia'
+            'Ya hice la transferencia desde mi banco'
           )}
         </Button>
       ) : null}
 
-      <section className="space-y-4 rounded-[1.5rem] border border-border bg-card/80 p-4 shadow-[0_10px_30px_rgba(0,0,0,0.2)]">
-        <h2 className="text-sm font-bold text-foreground">Monto en pesos</h2>
-        <Input
-          id="manual-amount"
-          inputMode="decimal"
-          value={sourceAmount}
-          onChange={(e) => setSourceAmount(e.target.value)}
-          placeholder="Monto MXN"
-          className="h-12 rounded-xl border-border bg-background px-4 tabular-nums"
-          aria-label="Monto MXN"
-        />
-        <Input
-          id="manual-asset"
-          value={targetOverride}
-          onChange={(e) => setTargetOverride(e.target.value)}
-          placeholder="Referencia opcional"
-          className="h-12 rounded-xl border-border bg-background px-4 font-mono text-xs"
-          aria-label="Referencia opcional"
-        />
-        <Button
-          type="button"
-          className="w-full rounded-full bg-foreground text-background"
-          disabled={!!busy || !canOperate}
-          onClick={() => void openManualSpeiReview()}
-        >
-          {busy === 'spei-manual-prepare' ? (
-            <>
-              <Spinner className="size-4 text-background" />
-              Cargando…
-            </>
-          ) : (
-            'Generar datos de depósito'
-          )}
-        </Button>
-      </section>
+      {showDepositProgress ? (
+        <section className="rounded-[1.25rem] border border-border bg-card/60 p-4">
+          <p className="text-sm font-bold text-foreground">Seguimiento del depósito</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Así va tu transferencia; no hace falta entender términos técnicos.
+          </p>
+          <div className="mt-3 space-y-3">
+            {depositProgress.map((step) => (
+              <div
+                key={step.label}
+                className="rounded-xl border border-border/70 bg-background/50 px-3 py-2.5"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground">{step.label}</p>
+                    <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+                      {step.description}
+                    </p>
+                  </div>
+                  <span
+                    className={cn(
+                      'shrink-0 text-xs font-bold',
+                      step.done ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground',
+                    )}
+                  >
+                    {step.done ? 'Listo' : 'Pendiente'}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {err && (
         <p className="mt-6 rounded-[1rem] border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">

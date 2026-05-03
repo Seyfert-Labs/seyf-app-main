@@ -150,7 +150,7 @@ export function MovementDetailSheet({
               </p>
             ) : !txLoading && movement.source === 'ledger' ? (
               <p className="text-xs text-muted-foreground">
-                En pruebas internas el comprobante solo existe si se guardó al crear el movimiento.
+                El comprobante aparece cuando ya quedó guardado en tu historial.
               </p>
             ) : !txLoading && movement.source === 'stellar' && !stellarUrl ? (
               <p className="text-xs text-muted-foreground">No hay hash de transacción para enlazar.</p>

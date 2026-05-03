@@ -8,3 +8,8 @@ export function stellarWalletNetworkFromEnv(): PublicStellarNetwork {
     process.env.NEXT_PUBLIC_STELLAR_NETWORK
   return n === 'mainnet' ? 'mainnet' : 'testnet'
 }
+
+/** Cliente y servidor: testnet si la red pública no es `mainnet`. */
+export function isPublicStellarTestnet(): boolean {
+  return stellarWalletNetworkFromEnv() === 'testnet'
+}

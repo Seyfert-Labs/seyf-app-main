@@ -119,3 +119,24 @@ export async function upsertStoredKycSnapshot(params: {
   await saveStore(store)
   return { updated: true }
 }
+
+export async function listStoredKycRows(limit = 200): Promise<
+  Array<{
+    customerId: string
+    walletPublicKey: string
+    status: EtherfuseKycStatus
+    approvedAt: string | null
+    currentRejectionReason: string | null
+    updatedAt: string
+  }>
+> {
+  const store = await loadStore()
+  return store.rows.slice(0, Math.max(1, limit)).map((row) => ({
+    customerId: row.customerId,
+    walletPublicKey: row.walletPublicKey,
+    status: row.status,
+    approvedAt: row.approvedAt,
+    currentRejectionReason: row.currentRejectionReason,
+    updatedAt: row.updatedAt,
+  }))
+}

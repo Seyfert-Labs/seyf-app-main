@@ -62,7 +62,13 @@ function formatCetesUnits(n: number) {
   }).format(n)
 }
 
-export function DashboardHeroCarousel({ data }: { data: HeroData }) {
+export function DashboardHeroCarousel({
+  data,
+  onIndexChange,
+}: {
+  data: HeroData
+  onIndexChange?: (index: number) => void
+}) {
   const { main: balanceMain, cents: balanceCents } = splitCurrencyForDisplay(data.principal)
   const shouldReduce = useReducedMotion()
   const sb = data.stablebondCetes
@@ -95,6 +101,7 @@ export function DashboardHeroCarousel({ data }: { data: HeroData }) {
     (i: number) => {
       const clamped = Math.max(0, Math.min(SLIDE_COUNT - 1, i))
       setIndex(clamped)
+      onIndexChange?.(clamped)
       if (viewportW <= 0) return
       if (shouldReduce) {
         x.set(-clamped * viewportW)
@@ -102,7 +109,7 @@ export function DashboardHeroCarousel({ data }: { data: HeroData }) {
         animate(x, -clamped * viewportW, spring)
       }
     },
-    [viewportW, x, shouldReduce],
+    [viewportW, x, shouldReduce, onIndexChange],
   )
 
   const onDragEnd = (_: unknown, info: { offset: { x: number }; velocity: { x: number } }) => {

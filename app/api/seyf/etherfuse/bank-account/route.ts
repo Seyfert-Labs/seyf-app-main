@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { NextResponse } from 'next/server'
 import { toErrorResponse, AppError } from '@/lib/seyf/api-error'
-import { assertEtherfuseKycApproved } from '@/lib/seyf/etherfuse-kyc-guard'
+import { fetchEtherfuseKycStatus } from '@/lib/etherfuse/kyc'
 import {
   getEtherfuseOnboardingSession,
   saveEtherfuseOnboardingSession,
@@ -54,10 +54,15 @@ export async function POST(req: Request) {
       })
     }
 
-    await assertEtherfuseKycApproved({
-      customerId: session.customerId,
-      publicKey: session.publicKey,
-    })
+    const kyc = await fetchEtherfuseKycStatus(session.customerId, session.publicKey)
+    if (!kyc.ok) {
+      throw new AppError('validation_error', {
+        statusCode: 409,
+        retryable: false,
+        message:
+          'Primero envía tu formulario de identidad KYC para crear la cuenta CLABE.',
+      })
+    }
 
     const raw = (await req.json().catch(() => null)) as unknown
     const parsed = bodySchema.safeParse(raw)

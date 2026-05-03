@@ -32,6 +32,10 @@ export async function getEtherfuseRampContext(): Promise<EtherfuseRampContext | 
       source: "cookie",
     };
   }
+  if (process.env.NODE_ENV === "production") {
+    // In production we require real onboarding session context only.
+    return null;
+  }
   if (!isEtherfuseDevPanelEnabled()) {
     return null;
   }
