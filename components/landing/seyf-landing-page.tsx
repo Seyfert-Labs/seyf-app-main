@@ -18,8 +18,27 @@ import {
   SEYF_LANDING_SECURITY_BODY,
   SEYF_LANDING_SECURITY_TITLE,
   SEYF_LANDING_TAGLINE,
+  SEYF_LANDING_TAGLINE_PARTS,
 } from '@/lib/seyf/landing-copy'
+import { SeyfScrollGallery } from '@/components/landing/seyf-scroll-gallery'
+import ThreeDMarquee from '@/components/ui/3d-marquee'
 import { cn } from '@/lib/utils'
+
+/** Imágenes del marquee de fondo (mismo set que el hero anterior). */
+const LANDING_MARQUEE_IMAGES = [
+  'https://images.unsplash.com/photo-1563013544-824ae1b704d3?w=400&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=400&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=400&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=400&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?w=400&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=400&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1642790106117-e829e14a795f?w=400&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1618044733300-9472054094ee?w=400&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1621761191319-c6fb62004040?w=400&h=300&fit=crop',
+  'https://images.unsplash.com/photo-1633158829585-23ba8f7c8caf?w=400&h=300&fit=crop',
+] as const
 
 function useLandingWalletRedirect() {
   const router = useRouter()
@@ -97,6 +116,9 @@ export default function SeyfLandingPage() {
             />
           </Link>
           <nav className="hidden items-center gap-8 text-sm font-medium text-zinc-600 md:flex dark:text-zinc-400">
+            <a href="#recorrido" className="transition-colors hover:text-zinc-900 dark:hover:text-white">
+              Recorrido
+            </a>
             <a href="#tarjetas" className="transition-colors hover:text-zinc-900 dark:hover:text-white">
               Tarjetas
             </a>
@@ -128,9 +150,23 @@ export default function SeyfLandingPage() {
         </div>
       </header>
 
-      {/* Hero: blanco, tipografía grande centrada */}
-      <section className="relative px-4 pt-24 pb-16 sm:px-6 sm:pt-32 sm:pb-24">
-        <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
+      {/* Hero: fondo ThreeDMarquee (efecto animado del hero original) + velo para legibilidad */}
+      <section className="relative isolate min-h-[calc(100svh-2.5rem)] overflow-hidden px-4 pt-24 pb-20 sm:min-h-[calc(100svh-3rem)] sm:px-6 sm:pt-32 sm:pb-28">
+        <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+          <ThreeDMarquee
+            images={[...LANDING_MARQUEE_IMAGES]}
+            className="opacity-[0.44] dark:opacity-[0.30] !h-full !min-h-full min-h-[28rem] w-full max-w-none rounded-none xl:!h-full xl:!min-h-0"
+          />
+        </div>
+        <div
+          className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-white/88 via-[#f4faf7]/80 to-white/90 dark:from-zinc-950/92 dark:via-zinc-950/78 dark:to-zinc-950/94"
+          aria-hidden
+        />
+        <div className="pointer-events-none absolute inset-0 z-[1] overflow-hidden opacity-90 dark:opacity-70" aria-hidden>
+          <div className="absolute -top-24 right-[-18%] h-[min(420px,55vw)] w-[min(420px,55vw)] rounded-full bg-[#8ab9a3]/18 blur-3xl dark:bg-[#15534a]/22" />
+          <div className="absolute -bottom-28 left-[-12%] h-[min(380px,50vw)] w-[min(380px,50vw)] rounded-full bg-[#15534a]/10 blur-3xl dark:bg-[#1f6559]/18" />
+        </div>
+        <div className="relative z-10 mx-auto flex max-w-3xl flex-col items-center text-center">
           <Image
             src="/SEYF.png"
             alt=""
@@ -140,7 +176,9 @@ export default function SeyfLandingPage() {
             aria-hidden
           />
           <h1 className="mt-10 text-4xl font-black tracking-tight text-balance text-zinc-950 sm:text-5xl md:text-[3.25rem] md:leading-[1.08] dark:text-white">
-            {SEYF_LANDING_TAGLINE}
+            {SEYF_LANDING_TAGLINE_PARTS.before}
+            <span className="text-[#45b596] dark:text-[#7fe8cc]">{SEYF_LANDING_TAGLINE_PARTS.highlight}</span>
+            {SEYF_LANDING_TAGLINE_PARTS.after}
           </h1>
           <p className="mt-6 max-w-2xl text-base leading-relaxed text-zinc-600 sm:text-lg dark:text-zinc-400">
             {SEYF_LANDING_LEAD}
@@ -275,6 +313,8 @@ export default function SeyfLandingPage() {
           />
         </div>
       </section>
+
+      <SeyfScrollGallery />
 
       <footer className="border-t border-zinc-200 px-4 py-8 text-center text-xs text-zinc-500 dark:border-zinc-800">
         <p>© {new Date().getFullYear()} Seyf. Todos los derechos reservados.</p>

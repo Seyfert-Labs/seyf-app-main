@@ -14,9 +14,9 @@ const inter = Inter({
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'Seyf — Buy now, Pay never',
+  title: 'Seyf — Gasta ahora y nunca pagues',
   description:
-    'Compra hoy, paga en tu ritmo. Ahorro, adelantos y liquidez con custodia Stellar vía Pollar.',
+    'Adelanta rendimientos de bonos y protege tu capital. Liquidez, tarjeta Seyf y operación con custodia Stellar vía Pollar.',
   generator: 'v0.app',
   icons: {
     icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
@@ -30,7 +30,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="es" suppressHydrationWarning className={inter.variable}>
+    <html lang="es-MX" suppressHydrationWarning className={inter.variable}>
       <body className="min-h-dvh font-sans antialiased">
         <PublicMobileHistorySeed />
         <PollarProviderClient>{children}</PollarProviderClient>
