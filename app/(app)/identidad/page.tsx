@@ -2,13 +2,11 @@ import { getEtherfuseOnboardingSession } from '@/lib/etherfuse/onboarding-sessio
 import { fetchEtherfuseKycStatus } from '@/lib/etherfuse/kyc'
 import type { EtherfuseKycSnapshot } from '@/lib/etherfuse/kyc'
 import { getStoredKycSnapshot, upsertStoredKycSnapshot } from '@/lib/seyf/kyc-state-store'
-import { isKycTestResetEnabled } from '@/lib/seyf/kyc-test-reset'
 import { triggerWalletProvisioning } from './actions'
 import IdentidadClient from './identidad-client'
 
 export default async function IdentidadPage() {
   const session = await getEtherfuseOnboardingSession()
-  const allowKycTestReset = isKycTestResetEnabled()
   let initialKyc: EtherfuseKycSnapshot | null = null
   if (session) {
     initialKyc = await getStoredKycSnapshot(session.customerId, session.publicKey)
@@ -32,10 +30,6 @@ export default async function IdentidadPage() {
     }
   }
   return (
-    <IdentidadClient
-      initialSession={session}
-      initialKyc={initialKyc}
-      allowKycTestReset={allowKycTestReset}
-    />
+    <IdentidadClient initialSession={session} initialKyc={initialKyc} />
   )
 }

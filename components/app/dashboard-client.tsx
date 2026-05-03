@@ -78,10 +78,8 @@ const kycStatusFetcher = (url: string): Promise<EtherfuseKycSnapshot | null> =>
   })
 
 export default function DashboardClient({
-  showEtherfuseRampDev = false,
   vm,
 }: {
-  showEtherfuseRampDev?: boolean
   vm: DashboardViewModel
 }) {
   const { wallet, assetBalances, loading, refreshBalance } = useSeyfWallet()
@@ -684,36 +682,6 @@ export default function DashboardClient({
             >
               Usar
             </Button>
-          </Link>
-        </section>
-      )}
-
-      {showEtherfuseRampDev && (
-        <section className="space-y-2 rounded-[1.25rem] border border-dashed border-amber-500/25 bg-amber-500/[0.06] p-4">
-          <p className="text-xs font-bold text-amber-200/90">Solo desarrollo</p>
-          <Link
-            href="/anadir"
-            className="block text-sm font-semibold text-foreground underline-offset-4 hover:underline"
-          >
-            Añadir fondos
-          </Link>
-          <Link
-            href="/retirar"
-            className="block text-sm font-semibold text-foreground underline-offset-4 hover:underline"
-          >
-            Retirar
-          </Link>
-          <Link
-            href="/dev/poc-omnibus"
-            className="block text-sm font-semibold text-foreground underline-offset-4 hover:underline"
-          >
-            Omnibus
-          </Link>
-          <Link
-            href="/dev/etherfuse-ops"
-            className="block text-sm font-semibold text-foreground underline-offset-4 hover:underline"
-          >
-            Backoffice Etherfuse
           </Link>
         </section>
       )}

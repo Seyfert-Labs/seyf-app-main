@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { EtherfuseKycSnapshot } from '@/lib/etherfuse/kyc'
 import type { EtherfuseOnboardingSession } from '@/lib/etherfuse/onboarding-session'
-import { resetKycTestSession } from './actions'
 import { cn } from '@/lib/utils'
 import { isPublicStellarTestnet } from '@/lib/seyf/stellar-wallet-network'
 import { useSeyfWallet } from '@/lib/seyf/use-seyf-wallet'
@@ -59,68 +58,37 @@ function KycDocumentPicker({
   return (
     <div
       className={cn(
-        'rounded-xl border-2 border-dashed px-3 py-3 transition-colors',
+        'rounded-xl border-2 border-dashed px-4 py-4 text-center transition-colors sm:px-5 sm:py-5',
         selectedFileName
           ? 'border-[#2d7a5e] bg-[#e8f5ef] dark:border-emerald-500/55 dark:bg-emerald-950/30'
           : 'border-border bg-secondary/25',
       )}
     >
-      <p className="text-xs font-bold text-foreground">{label}</p>
-      <p className="mt-0.5 text-[11px] text-muted-foreground">{hint}</p>
-      <Input
-        type="file"
-        name={name}
-        accept="image/jpeg,image/png"
-        required
-        disabled={disabled}
-        className="mt-2 h-11 cursor-pointer rounded-lg border-border bg-background text-xs file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:text-xs file:font-medium"
-        onChange={(e) => onSelect(e.target.files?.[0] ?? null)}
-      />
+      <p className="text-[11px] font-bold leading-snug text-foreground sm:text-xs">{label}</p>
+      <p className="mx-auto mt-1.5 max-w-[18rem] text-[10px] leading-snug text-muted-foreground sm:text-[11px]">
+        {hint}
+      </p>
+      <div className="mt-3 w-full min-w-0 px-0.5">
+        <Input
+          type="file"
+          name={name}
+          accept="image/jpeg,image/png"
+          required
+          disabled={disabled}
+          className={cn(
+            'h-auto min-h-[2.75rem] w-full min-w-0 cursor-pointer rounded-lg border-border bg-background py-2 pl-2 pr-2 text-[10px] leading-tight',
+            'file:mr-2 file:inline-flex file:shrink-0 file:rounded-md file:border-0 file:bg-secondary file:px-2.5 file:py-1.5 file:text-[10px] file:font-medium file:leading-tight',
+            'sm:file:mr-3 sm:file:px-3 sm:file:text-[11px]',
+          )}
+          onChange={(e) => onSelect(e.target.files?.[0] ?? null)}
+        />
+      </div>
       {selectedFileName ? (
-        <p className="mt-2 flex items-center gap-2 text-xs font-semibold text-[#1f6b4a] dark:text-emerald-300">
-          <CheckCircle2 className="size-4 shrink-0" aria-hidden />
-          <span className="truncate">{selectedFileName}</span>
+        <p className="mt-3 flex items-center justify-center gap-2 text-[11px] font-semibold leading-snug text-[#1f6b4a] dark:text-emerald-300">
+          <CheckCircle2 className="size-3.5 shrink-0 sm:size-4" aria-hidden />
+          <span className="max-w-full break-all text-left">{selectedFileName}</span>
         </p>
       ) : null}
-    </div>
-  )
-}
-
-function DevKycResetPanel({
-  onAfterReset,
-}: {
-  onAfterReset: () => void
-}) {
-  const [pending, startTransition] = useTransition()
-  const [msg, setMsg] = useState<string | null>(null)
-
-  return (
-    <div className="mt-8 rounded-[1.5rem] border border-dashed border-amber-500/25 bg-amber-500/[0.06] p-4">
-      <p className="text-xs font-bold text-amber-200/90">Solo desarrollo</p>
-      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-        Borra la sesión guardada en este navegador. Para volver a empezar puede hacer falta usar otra cuenta o
-        borrar datos locales del dispositivo.
-      </p>
-      <Button
-        type="button"
-        variant="outline"
-        disabled={pending}
-        onClick={() => {
-          setMsg(null)
-          startTransition(async () => {
-            const r = await resetKycTestSession()
-            if (!r.ok) {
-              setMsg(r.error)
-              return
-            }
-            onAfterReset()
-          })
-        }}
-        className="mt-3 rounded-full border-border bg-transparent text-xs font-semibold text-foreground hover:bg-secondary"
-      >
-        {pending ? 'Reiniciando…' : 'Reiniciar verificación'}
-      </Button>
-      {msg && <p className="mt-2 text-xs text-destructive">{msg}</p>}
     </div>
   )
 }
@@ -175,11 +143,9 @@ function kycStatusHint(status: EtherfuseKycSnapshot['status']): string {
 export default function IdentidadClient({
   initialSession,
   initialKyc,
-  allowKycTestReset,
 }: {
   initialSession: EtherfuseOnboardingSession | null
   initialKyc: EtherfuseKycSnapshot | null
-  allowKycTestReset: boolean
 }) {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
@@ -764,14 +730,6 @@ export default function IdentidadClient({
             Volver al inicio
           </Button>
         </Link>
-
-        {allowKycTestReset && (
-          <DevKycResetPanel
-            onAfterReset={() => {
-              void runRefresh('reset')
-            }}
-          />
-        )}
       </AppPageBody>
     )
   }
@@ -834,14 +792,6 @@ export default function IdentidadClient({
             Volver al inicio
           </Button>
         </Link>
-
-        {allowKycTestReset && (
-          <DevKycResetPanel
-            onAfterReset={() => {
-              void runRefresh('reset')
-            }}
-          />
-        )}
       </AppPageBody>
     )
   }
@@ -1014,16 +964,17 @@ export default function IdentidadClient({
           <Input name="curp" placeholder="CURP" required className="h-12 rounded-xl" disabled={!canSubmitForm} />
           <Input name="rfc" placeholder="RFC" required className="h-12 rounded-xl" disabled={!canSubmitForm} />
         </div>
-        <p className="rounded-xl border border-[#bfd6ca] bg-[#f4faf7] px-3 py-2.5 text-xs leading-relaxed text-[#4a6358] dark:border-[#2b4a43] dark:bg-secondary/40 dark:text-[#d2e9df]">
+        <p className="rounded-xl border border-[#bfd6ca] bg-[#f4faf7] px-4 py-3 text-center text-[11px] leading-relaxed text-[#4a6358] dark:border-[#2b4a43] dark:bg-secondary/40 dark:text-[#d2e9df] sm:text-xs">
           No necesitas capturar tu CLABE aquí: aún no existe una cuenta de depósito vinculada. La registrarás cuando
           habilitemos transferencias SPEI hacia tu banco.
         </p>
-        <section className="rounded-[1.25rem] border border-border bg-card/50 p-4">
-          <p className="text-sm font-bold text-foreground">Documentos KYC</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Imágenes claras en JPG o PNG (máx. 10 MB por archivo). Verás confirmación en verde al elegir cada archivo.
+        <section className="rounded-[1.25rem] border border-border bg-card/50 p-4 sm:p-5">
+          <p className="text-center text-sm font-bold text-foreground">Documentos KYC</p>
+          <p className="mx-auto mt-2 max-w-md text-center text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
+            Imágenes claras en JPG o PNG (máx. 10 MB por archivo). Verás confirmación en verde al elegir cada
+            archivo.
           </p>
-          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <div className="mt-4 grid gap-4 sm:grid-cols-3 sm:gap-3">
             <KycDocumentPicker
               name="idFront"
               label="Identificación · frente"
@@ -1089,14 +1040,6 @@ export default function IdentidadClient({
           ? 'Tu estado está en revisión. Pulsa "Actualizar estado" para consultar cambios.'
           : 'Cuando envíes tus datos, verás aquí el estado de validación.'}
       </p>
-
-      {allowKycTestReset && (
-        <DevKycResetPanel
-          onAfterReset={() => {
-            void runRefresh('reset')
-          }}
-        />
-      )}
     </AppPageBody>
   )
 }
