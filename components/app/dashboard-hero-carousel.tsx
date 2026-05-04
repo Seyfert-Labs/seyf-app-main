@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { animate, motion, useMotionValue, useReducedMotion } from 'framer-motion'
-import { ArrowDownToLine, Clock, Info, Plus, Send } from 'lucide-react'
+import { ArrowDownToLine, Clock, Info, Send } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { formatMXN, formatPuntos, splitCurrencyForDisplay } from '@/lib/formatters'
@@ -14,6 +14,7 @@ type HeroData = {
   puntos: number
   tasaAnual: number
   advanceUsed?: boolean
+  isTestnet?: boolean
   /** CETES desde Etherfuse /lookup/stablebonds */
   stablebondCetes?: {
     loading: boolean
@@ -33,8 +34,8 @@ const TABS = ['Saldos', 'Adelanto', 'Puntos'] as const
 const SLIDE_COUNT = TABS.length
 
 const saldosQuickActions = [
-  { href: '/depositar', label: 'Depositar', icon: Plus },
-  { href: '/retirar', label: 'Transferir', icon: ArrowDownToLine },
+  { href: '/anadir', label: 'Depositar', icon: ArrowDownToLine },
+  { href: '/retirar', label: 'Transferir', icon: Send },
   { href: '/historial', label: 'Movimientos', icon: Clock },
   { href: '/identidad', label: 'Verificar', icon: Info },
 ] as const
@@ -62,7 +63,13 @@ function formatCetesUnits(n: number) {
   }).format(n)
 }
 
-export function DashboardHeroCarousel({ data }: { data: HeroData }) {
+export function DashboardHeroCarousel({
+  data,
+  onIndexChange,
+}: {
+  data: HeroData
+  onIndexChange?: (index: number) => void
+}) {
   const { main: balanceMain, cents: balanceCents } = splitCurrencyForDisplay(data.principal)
   const shouldReduce = useReducedMotion()
   const sb = data.stablebondCetes
@@ -95,6 +102,7 @@ export function DashboardHeroCarousel({ data }: { data: HeroData }) {
     (i: number) => {
       const clamped = Math.max(0, Math.min(SLIDE_COUNT - 1, i))
       setIndex(clamped)
+      onIndexChange?.(clamped)
       if (viewportW <= 0) return
       if (shouldReduce) {
         x.set(-clamped * viewportW)
@@ -102,7 +110,7 @@ export function DashboardHeroCarousel({ data }: { data: HeroData }) {
         animate(x, -clamped * viewportW, spring)
       }
     },
-    [viewportW, x, shouldReduce],
+    [viewportW, x, shouldReduce, onIndexChange],
   )
 
   const onDragEnd = (_: unknown, info: { offset: { x: number }; velocity: { x: number } }) => {
@@ -142,7 +150,9 @@ export function DashboardHeroCarousel({ data }: { data: HeroData }) {
           onDragEnd={onDragEnd}
         >
           <div className="w-1/3 shrink-0 px-4 pb-4 pt-10 text-center">
-            <p className="text-[13px] font-medium text-muted-foreground">Saldo disponible</p>
+            <p className="text-[13px] font-medium text-muted-foreground">
+              {data.isTestnet ? 'Saldo total estimado (MXN)' : 'Saldo disponible (MXNE)'}
+            </p>
             <div className="mt-1 flex justify-center">
               <p className="inline-flex flex-wrap items-baseline justify-center gap-0.5 leading-none tracking-tight text-foreground">
                 <span className="text-[2.35rem] font-black tabular-nums sm:text-[2.65rem]">{balanceMain}</span>
@@ -208,6 +218,11 @@ export function DashboardHeroCarousel({ data }: { data: HeroData }) {
                   Valor estimado para consulta. Puede variar.
                 </p>
               </div>
+            ) : null}
+            {cw && cw.balance > 0 && !data.isTestnet ? (
+              <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
+                El saldo disponible en pesos no incluye CETES invertidos.
+              </p>
             ) : null}
 
             <div

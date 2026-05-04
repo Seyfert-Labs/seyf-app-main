@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { etherfuseFetch, etherfuseReadBody } from "./client";
 import { normalizeStellarPublicKey } from "./stellar-public-key";
 
@@ -7,10 +8,20 @@ const MAX_CUSTOMER_PAGES = 20;
 type CustomersList = { items?: { customerId?: string }[] };
 type WalletsList = { items?: { publicKey?: string }[] };
 type BankAccountsList = { items?: { bankAccountId?: string }[] };
+type OrgWalletsList = { items?: Record<string, unknown>[] };
 
 function sameWalletKey(a: string, b: string): boolean {
   return normalizeStellarPublicKey(a) === normalizeStellarPublicKey(b);
 }
+
+export type FindRampContextOptions = {
+  /**
+   * UUID de cuenta bancaria que Seyf ya generó para esta sesión. Si la wallet ya existe en Etherfuse
+   * pero aún no hay ninguna cuenta bancaria (antes de CLABE), la API no devuelve `bankAccountId`;
+   * en ese caso reutilizamos `customerId` de Etherfuse + este UUID para reintentar `onboarding-url`.
+   */
+  fallbackBankAccountId?: string;
+};
 
 /**
  * Cuando onboarding-url devuelve 409 (wallet ya registrada), hay que reutilizar el customerId
@@ -20,6 +31,7 @@ function sameWalletKey(a: string, b: string): boolean {
  */
 export async function findRampContextByWalletPublicKey(
   publicKey: string,
+  opts?: FindRampContextOptions,
 ): Promise<{ customerId: string; bankAccountId: string } | null> {
   const target = normalizeStellarPublicKey(publicKey);
 
@@ -76,15 +88,83 @@ export async function findRampContextByWalletPublicKey(
           : undefined;
       const bankAccountId =
         typeof first === "string" && first.length > 0 ? first : null;
-      /** Sin CLABE aún no se puede rampar; un UUID inventado rompía cotización/orden. */
-      if (!bankAccountId) {
-        return null;
+      if (bankAccountId) {
+        return { customerId, bankAccountId };
       }
 
-      return { customerId, bankAccountId };
+      const fallback = z
+        .string()
+        .uuid()
+        .safeParse(opts?.fallbackBankAccountId?.trim());
+      if (fallback.success) {
+        return { customerId, bankAccountId: fallback.data };
+      }
+
+      return null;
     }
 
     if (customers.length < PAGE_SIZE) break;
+  }
+
+  return null;
+}
+
+/**
+ * Resolución alternativa: `GET /ramp/wallets` a nivel org suele incluir `customerId` por fila.
+ * Útil cuando el paseo por `/ramp/customers` no encuentra la wallet (paginación / timing).
+ */
+export async function findRampContextFromOrgWallets(
+  publicKey: string,
+  opts?: FindRampContextOptions,
+): Promise<{ customerId: string; bankAccountId: string } | null> {
+  const res = await etherfuseFetch("/ramp/wallets", { method: "GET" });
+  const { json } = await etherfuseReadBody<OrgWalletsList>(res);
+  if (!res.ok) return null;
+
+  const target = normalizeStellarPublicKey(publicKey);
+  for (const row of json?.items ?? []) {
+    const pk =
+      typeof row.publicKey === "string"
+        ? row.publicKey
+        : typeof row.public_key === "string"
+          ? row.public_key
+          : null;
+    if (!pk) continue;
+    const bc = String(
+      typeof row.blockchain === "string"
+        ? row.blockchain
+        : typeof row.blockChain === "string"
+          ? row.blockChain
+          : "",
+    ).toLowerCase();
+    if (bc && bc !== "stellar") continue;
+    if (!sameWalletKey(pk, target)) continue;
+
+    const customerId =
+      typeof row.customerId === "string"
+        ? row.customerId
+        : typeof row.customer_id === "string"
+          ? row.customer_id
+          : null;
+    if (!customerId) continue;
+
+    const fromRow =
+      typeof row.bankAccountId === "string"
+        ? row.bankAccountId
+        : typeof row.bank_account_id === "string"
+          ? row.bank_account_id
+          : null;
+    if (fromRow && fromRow.length > 0) {
+      return { customerId, bankAccountId: fromRow };
+    }
+
+    const fallback = z
+      .string()
+      .uuid()
+      .safeParse(opts?.fallbackBankAccountId?.trim());
+    if (fallback.success) {
+      return { customerId, bankAccountId: fallback.data };
+    }
   }
 
   return null;

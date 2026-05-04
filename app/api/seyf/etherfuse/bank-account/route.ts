@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { NextResponse } from 'next/server'
 import { toErrorResponse, AppError } from '@/lib/seyf/api-error'
-import { assertEtherfuseKycApproved } from '@/lib/seyf/etherfuse-kyc-guard'
+import { fetchEtherfuseKycStatus } from '@/lib/etherfuse/kyc'
 import {
   getEtherfuseOnboardingSession,
   saveEtherfuseOnboardingSession,
@@ -54,10 +54,30 @@ export async function POST(req: Request) {
       })
     }
 
-    await assertEtherfuseKycApproved({
-      customerId: session.customerId,
-      publicKey: session.publicKey,
-    })
+    const kyc = await fetchEtherfuseKycStatus(session.customerId, session.publicKey)
+    if (!kyc.ok) {
+      throw new AppError('validation_error', {
+        statusCode: 409,
+        retryable: false,
+        message:
+          'Primero envía tu formulario de identidad KYC para crear la cuenta CLABE.',
+      })
+    }
+
+    const st = kyc.data.status
+    if (st !== 'approved' && st !== 'approved_chain_deploying') {
+      const msg =
+        st === 'proposed'
+          ? 'Tu KYC sigue en revisión. Cuando Etherfuse apruebe tu identidad, podrás registrar tu CLABE.'
+          : st === 'rejected'
+            ? 'Tu verificación fue rechazada. Actualiza tu información de identidad antes de registrar una cuenta bancaria.'
+            : 'Tu identidad aún no está lista para vincular CLABE. Completa o espera la verificación en Identidad.'
+      throw new AppError('validation_error', {
+        statusCode: 409,
+        retryable: false,
+        message: msg,
+      })
+    }
 
     const raw = (await req.json().catch(() => null)) as unknown
     const parsed = bodySchema.safeParse(raw)

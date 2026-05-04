@@ -20,6 +20,11 @@ import {
   pickRampOrderTransactionDetails,
 } from '@/lib/etherfuse/orders-api'
 import { useEffect } from 'react'
+import {
+  type EtherfuseReadinessClientPayload,
+  etherfuseDepositBlockedCopy,
+  parseEtherfuseReadinessJson,
+} from '@/lib/seyf/etherfuse-readiness-cta'
 
 type RampContextPayload = {
   kycApproved: boolean
@@ -37,6 +42,7 @@ export default function EtherfuseOfframpDevClient() {
   const [trackJson, setTrackJson] = useState<string>('')
   const [kycGate, setKycGate] = useState<RampContextPayload | null>(null)
   const [kycLoading, setKycLoading] = useState(true)
+  const [readiness, setReadiness] = useState<EtherfuseReadinessClientPayload | null>(null)
 
   const run = useCallback(async (label: string, fn: () => Promise<void>) => {
     setErr(null)
@@ -76,6 +82,42 @@ export default function EtherfuseOfframpDevClient() {
       })
       .finally(() => {
         if (!cancelled) setKycLoading(false)
+      })
+    fetch('/api/seyf/etherfuse/readiness')
+      .then(async (r) => {
+        const j = (await r.json().catch(() => ({}))) as { error?: string }
+        if (!r.ok) {
+          throw new Error(typeof j.error === 'string' ? j.error : `HTTP ${r.status}`)
+        }
+        if (cancelled) return
+        const parsed = parseEtherfuseReadinessJson(j)
+        if (parsed) {
+          setReadiness(parsed)
+        } else {
+          setReadiness({
+            onrampEnabled: false,
+            reasons: ['Respuesta de readiness inesperada.'],
+            kycApproved: false,
+            agreementsAccepted: false,
+            bankAccountReady: false,
+            trustlineReady: false,
+            documentsUploaded: false,
+            webhookConfigured: false,
+          })
+        }
+      })
+      .catch((e) => {
+        if (cancelled) return
+        setReadiness({
+          onrampEnabled: false,
+          reasons: [e instanceof Error ? e.message : 'No pudimos verificar requisitos del retiro.'],
+          kycApproved: false,
+          agreementsAccepted: false,
+          bankAccountReady: false,
+          trustlineReady: false,
+          documentsUploaded: false,
+          webhookConfigured: false,
+        })
       })
     return () => {
       cancelled = true
@@ -226,117 +268,154 @@ export default function EtherfuseOfframpDevClient() {
 
   const continueBusy = busy === 'offramp-flow'
   const trackBusy = busy === 'track'
-  const canOperate = !kycLoading && kycGate?.kycApproved === true
+  const canOperate = readiness?.onrampEnabled === true
+  const readinessReasons = readiness?.reasons ?? []
+  const withdrawBlocked = etherfuseDepositBlockedCopy({
+    readiness,
+    kycLoading,
+    mode: 'withdraw',
+    fallbackReason: kycGate?.kycReason ?? null,
+  })
 
   return (
     <AppPageBody className="space-y-6 pt-4">
       <AppBackLink href="/dashboard" />
 
-      <section className="relative overflow-hidden rounded-[1.5rem] border border-[#bfd6ca] bg-gradient-to-br from-[#edf6f2] via-[#e6f0ea] to-[#dce9e3] p-5">
-        <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-[#9ec7b3]/25 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-20 -left-14 h-44 w-44 rounded-full bg-[#b8b8b5]/20 blur-3xl" />
+      <section className="relative overflow-hidden rounded-[1.5rem] border border-[#bfd6ca] bg-gradient-to-br from-[#edf6f2] via-[#e6f0ea] to-[#dce9e3] p-5 dark:border-[#2b4a43] dark:from-[#0d3531] dark:via-[#15534a] dark:to-[#1f6559]">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-[#9ec7b3]/25 blur-3xl dark:bg-[#6ba690]/25" />
+        <div className="pointer-events-none absolute -bottom-20 -left-14 h-44 w-44 rounded-full bg-[#b8b8b5]/20 blur-3xl dark:bg-[#22433c]/40" />
         <div className="relative">
           <div className="mb-3 flex items-center justify-between gap-3">
-            <p className="inline-flex rounded-full border border-[#b8b8b5]/60 bg-white/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#5f7168]">
-            Retiro a cuenta
+            <p className="inline-flex rounded-full border border-[#b8b8b5]/60 bg-white/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#5f7168] dark:border-white/20 dark:bg-white/15 dark:text-[#d2e9df]">
+            Retiro SPEI
             </p>
           </div>
-          <h1 className="text-2xl font-black tracking-tight text-[#41534b]">Retirar fondos</h1>
-          <p className="mt-1.5 text-sm text-[#7b8f86]">
-            Convierte tus activos a pesos y retira a tu cuenta bancaria.
+          <h1 className="text-2xl font-black tracking-tight text-[#41534b] dark:text-white">Retirar fondos</h1>
+          <p className="mt-1.5 text-sm text-[#7b8f86] dark:text-[#d2e9df]">
+            Vendemos tu posición en CETES (u otro activo) y enviamos pesos a la CLABE que diste en tu verificación.
           </p>
         </div>
       </section>
 
-      <OfframpActionCard summary={offrampSummary} />
       {!canOperate ? (
         <section className="rounded-[1.25rem] border border-amber-500/30 bg-amber-500/[0.08] p-4">
-          <p className="text-sm font-bold text-foreground">Verificacion requerida</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {kycLoading
-              ? 'Validando estado KYC...'
-              : kycGate?.kycReason ?? 'Necesitas KYC aprobado para retirar a cuenta bancaria.'}
-          </p>
-          <Link href="/identidad" className="mt-3 inline-block text-sm font-semibold text-foreground underline">
-            Ir a verificar identidad
-          </Link>
+          <p className="text-sm font-bold text-foreground">{withdrawBlocked.title}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{withdrawBlocked.lead}</p>
+          {readinessReasons.length ? (
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+              {readinessReasons.slice(0, 5).map((r) => (
+                <li key={r}>{r}</li>
+              ))}
+            </ul>
+          ) : null}
+          <div className="mt-3 flex flex-col gap-2">
+            <Link
+              href={withdrawBlocked.primaryLink.href}
+              className="inline-flex text-sm font-semibold text-foreground underline"
+            >
+              {withdrawBlocked.primaryLink.label}
+            </Link>
+            {withdrawBlocked.extraLinks.map((item) => (
+              <Link
+                key={item.href + item.label}
+                href={item.href}
+                className="inline-flex text-xs font-medium text-muted-foreground underline decoration-muted-foreground/60"
+              >
+                {item.label}
+              </Link>
+            ))}
+          </div>
         </section>
+      ) : null}
+
+      {canOperate ? (
+        <section className="space-y-3 rounded-[1.5rem] border border-[#bfd6ca] bg-[#f4faf7] p-5 dark:border-border dark:bg-card/80">
+          <div>
+            <h2 className="text-base font-bold text-foreground">¿Cuánto quieres retirar?</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Cantidad del activo en tu wallet (el cotizador convierte a pesos para el SPEI).
+            </p>
+          </div>
+          <Input
+            inputMode="decimal"
+            value={sourceAmountTokens}
+            onChange={(e) => setSourceAmountTokens(e.target.value)}
+            placeholder="Ej. 10"
+            className="h-14 rounded-2xl border-[#c6dccf] bg-background px-4 text-lg tabular-nums font-semibold"
+            aria-label="Cantidad del activo a retirar"
+          />
+          <Input
+            value={sourceAssetOverride}
+            onChange={(e) => setSourceAssetOverride(e.target.value)}
+            placeholder="Activo (opcional, avanzado)"
+            className="h-11 rounded-xl border-border bg-background px-3 font-mono text-xs"
+            aria-label="Identificador de activo opcional"
+          />
+          <details className="rounded-xl border border-border/60 bg-background/50 px-3 py-2 text-xs text-muted-foreground">
+            <summary className="cursor-pointer font-medium text-foreground">Opciones avanzadas (sandbox)</summary>
+            <div className="mt-3 flex items-start gap-3">
+              <Checkbox
+                id="use-anchor"
+                checked={useAnchor}
+                onCheckedChange={(v) => setUseAnchor(v === true)}
+                className="mt-0.5"
+              />
+              <Label
+                htmlFor="use-anchor"
+                className="cursor-pointer leading-relaxed font-normal"
+              >
+                Modo anchor en Stellar (solo pruebas).{' '}
+                <a
+                  href="https://docs.etherfuse.com/guides/testing-offramps#anchor-mode-stellar-only"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-foreground underline underline-offset-2"
+                >
+                  Documentación
+                </a>
+              </Label>
+            </div>
+          </details>
+          <Button
+            type="button"
+            className="h-14 w-full rounded-2xl bg-foreground text-base font-bold text-background shadow-md"
+            disabled={!!busy}
+            onClick={() => void continueOfframp()}
+          >
+            {continueBusy ? (
+              <>
+                <Spinner className="size-4 text-background" />
+                Preparando retiro…
+              </>
+            ) : (
+              'Continuar con el retiro'
+            )}
+          </Button>
+        </section>
+      ) : null}
+
+      {canOperate || orderJson.trim() ? (
+        <OfframpActionCard summary={offrampSummary} />
       ) : null}
 
       {orderJson ? (
         <Button
           type="button"
-          className="w-full"
-          variant="outline"
+          className="h-12 w-full rounded-2xl border border-border font-semibold"
+          variant="secondary"
           disabled={!!busy || !canOperate}
           onClick={() => void trackOrder()}
         >
           {trackBusy ? (
             <>
               <Spinner className="size-4" />
-              Actualizando…
+              Consultando…
             </>
           ) : (
-            'Actualizar estado'
+            'Actualizar estado del retiro'
           )}
         </Button>
       ) : null}
-
-      <section className="space-y-4 rounded-[1.5rem] border border-border bg-card/80 p-4 shadow-[0_10px_30px_rgba(0,0,0,0.2)]">
-        <h2 className="text-sm font-bold text-foreground">Cuánto retiras</h2>
-        <Input
-          inputMode="decimal"
-          value={sourceAmountTokens}
-          onChange={(e) => setSourceAmountTokens(e.target.value)}
-          placeholder="Monto o unidades"
-          className="h-12 rounded-xl border-border bg-background px-4 tabular-nums"
-          aria-label="Monto a retirar"
-        />
-        <Input
-          value={sourceAssetOverride}
-          onChange={(e) => setSourceAssetOverride(e.target.value)}
-          placeholder="Opcional"
-          className="h-12 rounded-xl border-border bg-background px-4 font-mono text-xs"
-          aria-label="Opcional avanzado"
-        />
-        <div className="flex items-start gap-3 rounded-xl border border-border/60 bg-background/40 px-3 py-2">
-          <Checkbox
-            id="use-anchor"
-            checked={useAnchor}
-            onCheckedChange={(v) => setUseAnchor(v === true)}
-            className="mt-0.5"
-          />
-          <Label
-            htmlFor="use-anchor"
-            className="cursor-pointer text-xs leading-relaxed font-normal text-muted-foreground"
-          >
-            Modo alternativo de retiro.{' '}
-            <a
-              href="https://docs.etherfuse.com/guides/testing-offramps#anchor-mode-stellar-only"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-violet-600 underline underline-offset-2 hover:text-violet-500"
-            >
-              Más info
-            </a>
-          </Label>
-        </div>
-        <Button
-          type="button"
-          className="w-full rounded-full bg-foreground text-background"
-          disabled={!!busy || !canOperate}
-          onClick={() => void continueOfframp()}
-        >
-          {continueBusy ? (
-            <>
-              <Spinner className="size-4 text-background" />
-              Procesando…
-            </>
-          ) : (
-            'Generar retiro'
-          )}
-        </Button>
-      </section>
 
       {err ? (
         <p className="rounded-[1rem] border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">

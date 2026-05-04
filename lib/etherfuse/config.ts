@@ -68,12 +68,27 @@ export type EtherfuseConfig = {
 };
 
 /**
+ * Si es true, aplicamos checklist completo (webhook + ramp): producción “real”.
+ *
+ * En Vercel, `NODE_ENV` es `production` también en **preview** (`VERCEL_ENV=preview`),
+ * donde no quieres bloquear KYC por falta de secret de webhook en variables.
+ *
+ * @see https://vercel.com/docs/projects/environment-variables/system-environment-variables
+ */
+export function strictEtherfuseProductionConfig(): boolean {
+  if (process.env.NODE_ENV !== "production") return false;
+  const v = process.env.VERCEL_ENV;
+  if (v === "preview" || v === "development") return false;
+  return true;
+}
+
+/**
  * Validates all Etherfuse env vars and returns a typed config object.
  * Collects ALL validation errors before throwing (fail-fast, not fail-first).
  */
 export function getEtherfuseConfig(): EtherfuseConfig {
   const errors: string[] = [];
-  const isProduction = process.env.NODE_ENV === "production";
+  const strictProd = strictEtherfuseProductionConfig();
 
   // --- ETHERFUSE_API_KEY: required always, must be non-empty ---
   const apiKey = process.env.ETHERFUSE_API_KEY?.trim() ?? "";
@@ -103,7 +118,7 @@ export function getEtherfuseConfig(): EtherfuseConfig {
   const webhookSecretRaw = process.env.ETHERFUSE_WEBHOOK_SECRET?.trim() ?? "";
   const webhookSecret: string | null = webhookSecretRaw || null;
 
-  if (isProduction && !webhookSecretRaw) {
+  if (strictProd && !webhookSecretRaw) {
     errors.push(
       "ETHERFUSE_WEBHOOK_SECRET: required in production. See .env.example.",
     );
@@ -113,7 +128,7 @@ export function getEtherfuseConfig(): EtherfuseConfig {
   const allowRampRaw = process.env.SEYF_ALLOW_ETHERFUSE_RAMP?.trim();
   const allowRamp = allowRampRaw === "true";
 
-  if (isProduction && !allowRamp) {
+  if (strictProd && !allowRamp) {
     errors.push(
       'SEYF_ALLOW_ETHERFUSE_RAMP: must be "true" to enable ramp routes in production.',
     );

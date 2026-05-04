@@ -1,20 +1,41 @@
 'use client'
 
 import Link from 'next/link'
-import { type FormEvent, useCallback, useEffect, useMemo, useState, useTransition } from 'react'
+import { CheckCircle2 } from 'lucide-react'
+import {
+  type ChangeEvent,
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from 'react'
 import { AppBackLink } from '@/components/app/app-back-link'
 import { AppPageBody } from '@/components/app/app-page-body'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { EtherfuseKycSnapshot } from '@/lib/etherfuse/kyc'
 import type { EtherfuseOnboardingSession } from '@/lib/etherfuse/onboarding-session'
-import { resetKycTestSession } from './actions'
 import { cn } from '@/lib/utils'
+import { normalizeDateOfBirthToIso } from '@/lib/seyf/normalize-date-of-birth'
+import { isPublicStellarTestnet } from '@/lib/seyf/stellar-wallet-network'
 import { useSeyfWallet } from '@/lib/seyf/use-seyf-wallet'
 import { useEnsureCetesTrustline } from '@/lib/seyf/use-ensure-cetes-trustline'
 
 const KYC_PENDING_UI_KEY = 'seyf_kyc_pending_ui'
+/** Datos del formulario KYC para pre-rellenar el alta CLABE cuando el usuario ya esté aprobado. */
+const KYC_BANK_PREFILL_KEY = 'seyf_kyc_bank_prefill_v1'
 const MAX_FILE_BYTES = 10 * 1024 * 1024
+
+/** Tamaño legible para mensajes al usuario (es-MX). */
+function formatFileSizeForUser(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 KB'
+  const mb = bytes / (1024 * 1024)
+  if (mb >= 1) return `${mb >= 10 ? mb.toFixed(0) : mb.toFixed(1)} MB`
+  const kb = bytes / 1024
+  return `${kb < 10 ? kb.toFixed(1) : Math.round(kb)} KB`
+}
 
 async function fileToDataUrl(file: File): Promise<string> {
   return await new Promise<string>((resolve, reject) => {
@@ -35,46 +56,99 @@ function validateImageFile(file: File | null, label: string): string | null {
   if (!file) return `${label} es requerido.`
   const allowed = ['image/jpeg', 'image/png']
   if (!allowed.includes(file.type)) return `${label} debe ser JPG o PNG.`
-  if (file.size > MAX_FILE_BYTES) return `${label} excede 10MB.`
+  if (file.size > MAX_FILE_BYTES) {
+    return `${label}: el archivo pesa ${formatFileSizeForUser(file.size)}; el máximo permitido es ${formatFileSizeForUser(MAX_FILE_BYTES)}.`
+  }
   return null
 }
 
-function DevKycResetPanel({
-  onAfterReset,
+function KycDocumentPicker({
+  name,
+  label,
+  hint,
+  disabled,
+  selectedFileName,
+  onSelect,
 }: {
-  onAfterReset: () => void
+  name: string
+  label: string
+  hint: string
+  disabled: boolean
+  selectedFileName: string | null
+  onSelect: (file: File | null) => void
 }) {
-  const [pending, startTransition] = useTransition()
-  const [msg, setMsg] = useState<string | null>(null)
+  const [pickError, setPickError] = useState<string | null>(null)
+
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const input = e.currentTarget
+    const file = input.files?.[0] ?? null
+    if (!file) {
+      setPickError(null)
+      onSelect(null)
+      return
+    }
+    const allowed: readonly string[] = ['image/jpeg', 'image/png']
+    if (!allowed.includes(file.type)) {
+      setPickError('Formato no válido. Usa JPG o PNG.')
+      onSelect(null)
+      input.value = ''
+      return
+    }
+    if (file.size > MAX_FILE_BYTES) {
+      setPickError(
+        `El archivo pesa ${formatFileSizeForUser(file.size)}; el máximo es ${formatFileSizeForUser(MAX_FILE_BYTES)}.`,
+      )
+      onSelect(null)
+      input.value = ''
+      return
+    }
+    setPickError(null)
+    onSelect(file)
+  }
 
   return (
-    <div className="mt-8 rounded-[1.5rem] border border-dashed border-amber-500/25 bg-amber-500/[0.06] p-4">
-      <p className="text-xs font-bold text-amber-200/90">Modo prueba</p>
-      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-        Quita la sesión guardada en este navegador. El estado en Etherfuse sigue ligado a la misma
-        cuenta Stellar: para un KYC «desde cero» usa otra clave en sandbox o borra el cliente/wallet en{' '}
-        <span className="text-foreground/80">devnet</span>.
+    <div
+      className={cn(
+        'rounded-xl border-2 border-dashed px-4 py-4 text-center transition-colors sm:px-5 sm:py-5',
+        pickError
+          ? 'border-destructive/70 bg-destructive/[0.06] dark:border-destructive/60 dark:bg-destructive/[0.08]'
+          : selectedFileName
+            ? 'border-[#2d7a5e] bg-[#e8f5ef] dark:border-emerald-500/55 dark:bg-emerald-950/30'
+            : 'border-border bg-secondary/25',
+      )}
+    >
+      <p className="text-[11px] font-bold leading-snug text-foreground sm:text-xs">{label}</p>
+      <p className="mx-auto mt-1.5 max-w-[18rem] text-[10px] leading-snug text-muted-foreground sm:text-[11px]">
+        {hint} · máx. {formatFileSizeForUser(MAX_FILE_BYTES)}
       </p>
-      <Button
-        type="button"
-        variant="outline"
-        disabled={pending}
-        onClick={() => {
-          setMsg(null)
-          startTransition(async () => {
-            const r = await resetKycTestSession()
-            if (!r.ok) {
-              setMsg(r.error)
-              return
-            }
-            onAfterReset()
-          })
-        }}
-        className="mt-3 rounded-full border-border bg-transparent text-xs font-semibold text-foreground hover:bg-secondary"
-      >
-        {pending ? 'Reiniciando…' : 'Reiniciar prueba'}
-      </Button>
-      {msg && <p className="mt-2 text-xs text-destructive">{msg}</p>}
+      <div className="mt-3 w-full min-w-0 px-0.5">
+        <Input
+          type="file"
+          name={name}
+          accept="image/jpeg,image/png"
+          required
+          disabled={disabled}
+          className={cn(
+            'h-auto min-h-[2.75rem] w-full min-w-0 cursor-pointer rounded-lg border-border bg-background py-2 pl-2 pr-2 text-[10px] leading-tight',
+            'file:mr-2 file:inline-flex file:shrink-0 file:rounded-md file:border-0 file:bg-secondary file:px-2.5 file:py-1.5 file:text-[10px] file:font-medium file:leading-tight',
+            'sm:file:mr-3 sm:file:px-3 sm:file:text-[11px]',
+          )}
+          onChange={handleChange}
+          aria-invalid={pickError ? true : undefined}
+          aria-describedby={pickError ? `${name}-file-error` : undefined}
+        />
+      </div>
+      {pickError ? (
+        <p id={`${name}-file-error`} className="mt-2 text-[10px] font-medium text-destructive sm:text-[11px]" role="alert">
+          {pickError}
+        </p>
+      ) : null}
+      {selectedFileName && !pickError ? (
+        <p className="mt-3 flex items-center justify-center gap-2 text-[11px] font-semibold leading-snug text-[#1f6b4a] dark:text-emerald-300">
+          <CheckCircle2 className="size-3.5 shrink-0 sm:size-4" aria-hidden />
+          <span className="max-w-full break-all text-left">{selectedFileName}</span>
+        </p>
+      ) : null}
     </div>
   )
 }
@@ -129,15 +203,12 @@ function kycStatusHint(status: EtherfuseKycSnapshot['status']): string {
 export default function IdentidadClient({
   initialSession,
   initialKyc,
-  allowKycTestReset,
 }: {
   initialSession: EtherfuseOnboardingSession | null
   initialKyc: EtherfuseKycSnapshot | null
-  allowKycTestReset: boolean
 }) {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const [lastErrorDetail, setLastErrorDetail] = useState<string | null>(null)
   const [docUploadError, setDocUploadError] = useState<string | null>(null)
   const [kycState, setKycState] = useState<EtherfuseKycSnapshot | null>(initialKyc)
   const [pendingConfirmation, setPendingConfirmation] = useState(initialKyc?.status === 'proposed')
@@ -146,6 +217,23 @@ export default function IdentidadClient({
   const { wallet, loading, connect } = useSeyfWallet()
   const { ensure: ensureCetesTrustline, busy: trustlineBusy } = useEnsureCetesTrustline()
   const [trustlineStatus, setTrustlineStatus] = useState<'idle' | 'done' | 'error'>('idle')
+  const [docFileNames, setDocFileNames] = useState<{
+    idFront: string | null
+    idBack: string | null
+    selfie: string | null
+  }>({ idFront: null, idBack: null, selfie: null })
+
+  const [speiClabe, setSpeiClabe] = useState('')
+  const [baGiven, setBaGiven] = useState('')
+  const [baPaternal, setBaPaternal] = useState('')
+  const [baMaternal, setBaMaternal] = useState('')
+  const [baBirth, setBaBirth] = useState('')
+  const [baCurp, setBaCurp] = useState('')
+  const [baRfc, setBaRfc] = useState('')
+  const [bankBusy, setBankBusy] = useState(false)
+  const [bankErr, setBankErr] = useState<string | null>(null)
+  const [bankOk, setBankOk] = useState<string | null>(null)
+  const [bankPrefillApplied, setBankPrefillApplied] = useState(false)
 
   const approved =
     kycState?.status === 'approved' || kycState?.status === 'approved_chain_deploying'
@@ -176,6 +264,47 @@ export default function IdentidadClient({
       if (!r.ok) console.warn('[identidad] trustline CETES:', r.error)
     })
   }, [approved, trustlineStatus, ensureCetesTrustline])
+
+  useEffect(() => {
+    if (!approved) return
+    if (typeof window === 'undefined') return
+    if (window.location.hash !== '#cuenta-spei') return
+    const t = window.setTimeout(() => {
+      document.getElementById('cuenta-spei')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 350)
+    return () => window.clearTimeout(t)
+  }, [approved])
+
+  useEffect(() => {
+    if (!approved || !kycState || bankPrefillApplied) return
+    if (typeof window === 'undefined') return
+    try {
+      const raw = window.sessionStorage.getItem(KYC_BANK_PREFILL_KEY)
+      if (!raw) return
+      const p = JSON.parse(raw) as Partial<{
+        givenName: string
+        paternalLastName: string
+        maternalLastName: string
+        dateOfBirth: string
+        curp: string
+        rfc: string
+      }>
+      setBaGiven((v) => v || (typeof p.givenName === 'string' ? p.givenName : '') || '')
+      setBaPaternal((v) => v || (typeof p.paternalLastName === 'string' ? p.paternalLastName : '') || '')
+      setBaMaternal((v) => v || (typeof p.maternalLastName === 'string' ? p.maternalLastName : '') || '')
+      setBaBirth((v) => {
+        if (v) return v
+        const dob = typeof p.dateOfBirth === 'string' ? p.dateOfBirth.trim() : ''
+        const iso = normalizeDateOfBirthToIso(dob)
+        return iso ?? dob
+      })
+      setBaCurp((v) => v || (typeof p.curp === 'string' ? p.curp.toUpperCase() : '') || '')
+      setBaRfc((v) => v || (typeof p.rfc === 'string' ? p.rfc.toUpperCase() : '') || '')
+      setBankPrefillApplied(true)
+    } catch {
+      // noop
+    }
+  }, [approved, kycState, bankPrefillApplied])
 
   const runRefresh = useCallback(
     async (origin: 'submit' | 'button' | 'reset') => {
@@ -210,11 +339,88 @@ export default function IdentidadClient({
     [pendingConfirmation],
   )
 
+  const submitSpeiBankLink = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setBankErr(null)
+    setBankOk(null)
+    const clabeDigits = speiClabe.replace(/\D/g, '')
+    if (clabeDigits.length !== 18) {
+      setBankErr('La CLABE debe tener 18 dígitos.')
+      return
+    }
+    const birthIso = normalizeDateOfBirthToIso(baBirth.trim())
+    const birthCompact = birthIso ? birthIso.replace(/-/g, '') : baBirth.replace(/\D/g, '')
+    if (birthCompact.length !== 8) {
+      setBankErr('Indica una fecha de nacimiento válida.')
+      return
+    }
+    if (!baGiven.trim() || !baPaternal.trim() || !baMaternal.trim()) {
+      setBankErr('Nombre y ambos apellidos son obligatorios.')
+      return
+    }
+    const curpNorm = baCurp.trim().toUpperCase()
+    const rfcNorm = baRfc.trim().toUpperCase()
+    if (!/^[A-Z0-9]{18}$/.test(curpNorm)) {
+      setBankErr('La CURP debe tener 18 caracteres.')
+      return
+    }
+    if (!/^[A-Z0-9]{13}$/.test(rfcNorm)) {
+      setBankErr('El RFC de persona física debe tener 13 caracteres.')
+      return
+    }
+    setBankBusy(true)
+    try {
+      const res = await fetch('/api/seyf/etherfuse/bank-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kind: 'personal',
+          account: {
+            firstName: baGiven.trim(),
+            paternalLastName: baPaternal.trim(),
+            maternalLastName: baMaternal.trim(),
+            birthDate: birthCompact,
+            birthCountryIsoCode: 'MX',
+            curp: curpNorm,
+            rfc: rfcNorm,
+            clabe: clabeDigits,
+          },
+        }),
+      })
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean
+        error?: { message_es?: string } | string
+      }
+      if (!res.ok || data.ok !== true) {
+        const err = data.error
+        const msg =
+          typeof err === 'string'
+            ? err
+            : err && typeof err === 'object' && typeof err.message_es === 'string'
+              ? err.message_es
+              : 'No se pudo registrar la cuenta.'
+        setBankErr(msg)
+        return
+      }
+      setBankOk(
+        'Cuenta registrada. Puede tardar unos minutos en activarse; luego puedes usar Añadir fondos.',
+      )
+      try {
+        window.sessionStorage.removeItem(KYC_BANK_PREFILL_KEY)
+      } catch {
+        // noop
+      }
+    } catch (err) {
+      setBankErr(err instanceof Error ? err.message : 'Error de red.')
+    } finally {
+      setBankBusy(false)
+    }
+  }
+
   const onSubmit = (e: FormEvent) => {
     e.preventDefault()
     setError(null)
     setSuccess(null)
-    setLastErrorDetail(null)
     setDocUploadError(null)
     startTransition(async () => {
       const connectedPublicKey = wallet?.publicKey?.trim() ?? ''
@@ -223,6 +429,12 @@ export default function IdentidadClient({
         return
       }
       const fd = new FormData(e.currentTarget as HTMLFormElement)
+      const curpValue = String(fd.get('curp') ?? '').trim().toUpperCase()
+      const rfcValue = String(fd.get('rfc') ?? '').trim().toUpperCase()
+      const givenName = String(fd.get('givenName') ?? '').trim()
+      const paternalLastName = String(fd.get('paternalLastName') ?? '').trim()
+      const maternalLastName = String(fd.get('maternalLastName') ?? '').trim()
+      const familyName = [paternalLastName, maternalLastName].filter(Boolean).join(' ').trim()
       const idFrontFile = (fd.get('idFront') as File | null) ?? null
       const idBackFile = (fd.get('idBack') as File | null) ?? null
       const selfieFile = (fd.get('selfie') as File | null) ?? null
@@ -236,6 +448,12 @@ export default function IdentidadClient({
         return
       }
 
+      const dateOfBirth = normalizeDateOfBirthToIso(String(fd.get('dateOfBirth') ?? ''))
+      if (!dateOfBirth) {
+        setError('Indica una fecha de nacimiento válida (usa el selector de fecha).')
+        return
+      }
+
       const payload = {
         publicKey: connectedPublicKey,
         identity: {
@@ -243,10 +461,10 @@ export default function IdentidadClient({
           phoneNumber: String(fd.get('phoneNumber') ?? ''),
           occupation: String(fd.get('occupation') ?? ''),
           name: {
-            givenName: String(fd.get('givenName') ?? ''),
-            familyName: String(fd.get('familyName') ?? ''),
+            givenName,
+            familyName,
           },
-          dateOfBirth: String(fd.get('dateOfBirth') ?? ''),
+          dateOfBirth,
           address: {
             street: String(fd.get('street') ?? ''),
             city: String(fd.get('city') ?? ''),
@@ -257,11 +475,11 @@ export default function IdentidadClient({
           idNumbers: [
             {
               type: 'mx_curp',
-              value: String(fd.get('curp') ?? ''),
+              value: curpValue,
             },
             {
               type: 'mx_rfc',
-              value: String(fd.get('rfc') ?? ''),
+              value: rfcValue,
             },
           ],
         },
@@ -279,7 +497,7 @@ export default function IdentidadClient({
           json && typeof json === 'object' && 'debug_message' in json && typeof json.debug_message === 'string'
             ? json.debug_message
             : null
-        if (debugDetail) setLastErrorDetail(debugDetail)
+        if (debugDetail) console.warn('[identidad] KYC submit debug:', debugDetail)
         console.warn('[identidad] KYC submit failed', {
           status: http.status,
           response: json,
@@ -315,7 +533,7 @@ export default function IdentidadClient({
         }
         if (!docsRes.ok || !docsJson.ok) {
           const detail = docsJson.debug_message
-          if (detail) setLastErrorDetail(detail)
+          if (detail) console.warn('[identidad] documents debug:', detail)
           setDocUploadError(
             docsJson.error?.message_es ??
               'No pudimos subir tus documentos. Reintenta con imágenes claras.',
@@ -333,49 +551,6 @@ export default function IdentidadClient({
       }
 
       try {
-        const dobRaw = String(fd.get('dateOfBirth') ?? '').trim()
-        const birthDate = dobRaw.replaceAll('-', '')
-        const bankRes = await fetch('/api/seyf/etherfuse/bank-account', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            kind: 'personal',
-            account: {
-              firstName: String(fd.get('givenName') ?? '').trim(),
-              paternalLastName: String(fd.get('paternalLastName') ?? '').trim(),
-              maternalLastName: String(fd.get('maternalLastName') ?? '').trim(),
-              birthDate,
-              birthCountryIsoCode: String(fd.get('country') ?? 'MX').trim().toUpperCase(),
-              curp: String(fd.get('curp') ?? '').trim(),
-              rfc: String(fd.get('rfc') ?? '').trim(),
-              clabe: String(fd.get('clabe') ?? '').trim(),
-            },
-          }),
-        })
-        const bankJson = (await bankRes.json().catch(() => ({}))) as {
-          ok?: boolean
-          error?: { message_es?: string }
-          debug_message?: string
-        }
-        if (!bankRes.ok || !bankJson.ok) {
-          const detail = bankJson.debug_message
-          if (detail) setLastErrorDetail(detail)
-          setDocUploadError(
-            bankJson.error?.message_es ??
-              'No pudimos registrar tu cuenta bancaria para depósitos. Reintenta.',
-          )
-          return
-        }
-      } catch (bankErr) {
-        setDocUploadError(
-          bankErr instanceof Error
-            ? bankErr.message
-            : 'No pudimos registrar la cuenta bancaria.',
-        )
-        return
-      }
-
-      try {
         const agreementsRes = await fetch('/api/seyf/kyc/agreements', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -385,14 +560,8 @@ export default function IdentidadClient({
               phone: String(fd.get('phoneNumber') ?? '') || undefined,
               occupation: String(fd.get('occupation') ?? '') || undefined,
               additionalInfo: {
-                curp:
-                  String(fd.get('idType') ?? '').trim().toLowerCase() === 'curp'
-                    ? String(fd.get('idValue') ?? '') || undefined
-                    : undefined,
-                rfc:
-                  String(fd.get('idType') ?? '').trim().toLowerCase() === 'rfc'
-                    ? String(fd.get('idValue') ?? '') || undefined
-                    : undefined,
+                curp: curpValue || undefined,
+                rfc: rfcValue || undefined,
               },
             },
           }),
@@ -404,10 +573,10 @@ export default function IdentidadClient({
         }
         if (!agreementsRes.ok || !agreementsJson.ok) {
           const detail = agreementsJson.debug_message
-          if (detail) setLastErrorDetail(detail)
+          if (detail) console.warn('[identidad] agreements debug:', detail)
           setDocUploadError(
             agreementsJson.error?.message_es ??
-              'No pudimos aceptar acuerdos legales de onboarding. Reintenta.',
+              'No pudimos registrar los acuerdos legales. Reintenta.',
           )
           return
         }
@@ -415,12 +584,65 @@ export default function IdentidadClient({
         setDocUploadError(
           agreementsErr instanceof Error
             ? agreementsErr.message
-            : 'No pudimos completar acuerdos de onboarding.',
+            : 'No pudimos completar los acuerdos legales.',
         )
         return
       }
 
-      setSuccess(`Datos, documentos, cuenta bancaria y acuerdos enviados. Estado actual: ${documentsStatus}.`)
+      try {
+        window.sessionStorage.setItem(
+          KYC_BANK_PREFILL_KEY,
+          JSON.stringify({
+            givenName,
+            paternalLastName,
+            maternalLastName,
+            dateOfBirth,
+            curp: curpValue,
+            rfc: rfcValue,
+          }),
+        )
+      } catch {
+        // noop
+      }
+
+      const birthCompactForBank = dateOfBirth.replace(/-/g, '')
+      if (isPublicStellarTestnet() && birthCompactForBank.length === 8) {
+        try {
+          const ar = await fetch('/api/seyf/etherfuse/bank-account-testnet-auto', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              firstName: givenName,
+              paternalLastName,
+              maternalLastName,
+              birthDate: birthCompactForBank,
+              curp: curpValue,
+              rfc: rfcValue,
+            }),
+          })
+          if (!ar.ok) {
+            const j = (await ar.json().catch(() => ({}))) as {
+              error?: { message_es?: string }
+              debug_message?: string
+            }
+            console.warn('[identidad] bank autofill', ar.status, j)
+            const hint =
+              j.error?.message_es ??
+              (typeof j.debug_message === 'string' ? j.debug_message : null) ??
+              'No pudimos crear la cuenta de prueba (CLABE sintética). Revisa SEYF_TESTNET_SYNTHETIC_CLABE y los logs.'
+            setDocUploadError(hint)
+          }
+        } catch (e) {
+          console.warn('[identidad] bank autofill', e)
+          setDocUploadError(
+            e instanceof Error
+              ? e.message
+              : 'No pudimos completar el alta bancaria automática en testnet.',
+          )
+        }
+      }
+
+      setSuccess('Tu información se envió correctamente.')
       if (
         documentsStatus === 'proposed' ||
         documentsStatus === 'approved' ||
@@ -523,8 +745,7 @@ export default function IdentidadClient({
             </div>
           ) : (
             <p className="mt-2 text-sm text-muted-foreground">
-              Etherfuse aún no devolvió el detalle del perfil en esta respuesta; tu cuenta sigue
-              verificada.
+              Aún no mostramos todos los datos del perfil aquí; tu cuenta sigue verificada.
             </p>
           )}
           {approvedLabel && (
@@ -533,6 +754,100 @@ export default function IdentidadClient({
             </p>
           )}
         </div>
+
+        {!isPublicStellarTestnet() ? (
+          <section
+          id="cuenta-spei"
+          className="mb-8 scroll-mt-6 rounded-[1.5rem] border border-border bg-card/50 p-5"
+        >
+          <p className="text-sm font-bold text-foreground">Vincular tu CLABE bancaria</p>
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+            Para depósitos y retiros necesitamos la CLABE de tu banco en México (18 dígitos). Es distinta de la
+            que verás al crear un depósito: esa es solo para recibir esa transferencia.
+          </p>
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+            Si aún no tienes cuenta bancaria con CLABE en México, este paso no aplicará hasta que exista una.
+          </p>
+          <p className="mt-3 rounded-lg border border-amber-500/25 bg-amber-500/[0.06] px-3 py-2 text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
+            <span className="font-semibold text-foreground">Importante:</span> aceptar los acuerdos legales (en el envío
+            de identidad) <span className="font-semibold text-foreground">no crea</span> tu cuenta CLABE en Etherfuse:
+            hay que registrarla aquí abajo con tus 18 dígitos. Si Pollar te pide firmar una transacción al terminar
+            identidad, suele ser para el activo CETES en Stellar, no para la cuenta bancaria.
+          </p>
+          <form
+            className="mt-4 grid gap-3"
+            onSubmit={(e) => {
+              void submitSpeiBankLink(e)
+            }}
+          >
+            <Input
+              value={speiClabe}
+              onChange={(ev) => setSpeiClabe(ev.target.value)}
+              placeholder="CLABE (18 dígitos)"
+              inputMode="numeric"
+              autoComplete="off"
+              className="h-12 rounded-xl font-mono tabular-nums"
+              aria-label="CLABE interbancaria"
+            />
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Input
+                value={baGiven}
+                onChange={(ev) => setBaGiven(ev.target.value)}
+                placeholder="Nombre(s)"
+                className="h-12 rounded-xl"
+                autoComplete="given-name"
+              />
+              <Input
+                value={baPaternal}
+                onChange={(ev) => setBaPaternal(ev.target.value)}
+                placeholder="Apellido paterno"
+                className="h-12 rounded-xl"
+                autoComplete="family-name"
+              />
+              <Input
+                value={baMaternal}
+                onChange={(ev) => setBaMaternal(ev.target.value)}
+                placeholder="Apellido materno"
+                className="h-12 rounded-xl"
+              />
+            </div>
+            <Input
+              type="date"
+              value={baBirth}
+              onChange={(ev) => setBaBirth(ev.target.value)}
+              className="h-12 rounded-xl"
+              aria-label="Fecha de nacimiento"
+            />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Input
+                value={baCurp}
+                onChange={(ev) => setBaCurp(ev.target.value.toUpperCase())}
+                placeholder="CURP"
+                className="h-12 rounded-xl font-mono uppercase"
+              />
+              <Input
+                value={baRfc}
+                onChange={(ev) => setBaRfc(ev.target.value.toUpperCase())}
+                placeholder="RFC"
+                className="h-12 rounded-xl font-mono uppercase"
+              />
+            </div>
+            {bankErr ? (
+              <p className="text-sm text-destructive">{bankErr}</p>
+            ) : null}
+            {bankOk ? (
+              <p className="text-sm text-emerald-600 dark:text-emerald-400">{bankOk}</p>
+            ) : null}
+            <Button
+              type="submit"
+              disabled={bankBusy}
+              className="h-12 w-full rounded-full bg-foreground text-sm font-bold text-background"
+            >
+              {bankBusy ? 'Enviando…' : 'Registrar cuenta'}
+            </Button>
+          </form>
+        </section>
+        ) : null}
 
         {trustlineBusy && (
           <div className="mb-4 rounded-[1.5rem] border border-blue-500/20 bg-blue-500/[0.07] p-4">
@@ -559,14 +874,6 @@ export default function IdentidadClient({
             Volver al inicio
           </Button>
         </Link>
-
-        {allowKycTestReset && (
-          <DevKycResetPanel
-            onAfterReset={() => {
-              void runRefresh('reset')
-            }}
-          />
-        )}
       </AppPageBody>
     )
   }
@@ -629,14 +936,6 @@ export default function IdentidadClient({
             Volver al inicio
           </Button>
         </Link>
-
-        {allowKycTestReset && (
-          <DevKycResetPanel
-            onAfterReset={() => {
-              void runRefresh('reset')
-            }}
-          />
-        )}
       </AppPageBody>
     )
   }
@@ -732,10 +1031,14 @@ export default function IdentidadClient({
           </div>
         ) : null}
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Input name="givenName" placeholder="Nombre(s)" required className="h-12 rounded-xl" disabled={!canSubmitForm} />
-          <Input name="familyName" placeholder="Apellido(s) completo" required className="h-12 rounded-xl" disabled={!canSubmitForm} />
-        </div>
+        <Input
+          name="givenName"
+          placeholder="Nombre(s)"
+          required
+          className="h-12 rounded-xl"
+          disabled={!canSubmitForm}
+          autoComplete="given-name"
+        />
         <div className="grid gap-3 sm:grid-cols-2">
           <Input
             name="paternalLastName"
@@ -743,6 +1046,7 @@ export default function IdentidadClient({
             required
             className="h-12 rounded-xl"
             disabled={!canSubmitForm}
+            autoComplete="family-name"
           />
           <Input
             name="maternalLastName"
@@ -804,45 +1108,47 @@ export default function IdentidadClient({
           <Input name="curp" placeholder="CURP" required className="h-12 rounded-xl" disabled={!canSubmitForm} />
           <Input name="rfc" placeholder="RFC" required className="h-12 rounded-xl" disabled={!canSubmitForm} />
         </div>
-        <Input
-          name="clabe"
-          placeholder="CLABE (18 dígitos)"
-          required
-          className="h-12 rounded-xl"
-          disabled={!canSubmitForm}
-        />
-        <section className="rounded-[1.25rem] border border-border bg-card/50 p-4">
-          <p className="text-sm font-bold text-foreground">Documentos KYC</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Sube imágenes claras (JPG/PNG, máximo 10MB): frente, reverso y selfie.
+        <p className="rounded-xl border border-[#bfd6ca] bg-[#f4faf7] px-4 py-3 text-center text-[11px] leading-relaxed text-[#4a6358] dark:border-[#2b4a43] dark:bg-secondary/40 dark:text-[#d2e9df] sm:text-xs">
+          No necesitas capturar tu CLABE aquí: aún no existe una cuenta de depósito vinculada. La registrarás cuando
+          habilitemos transferencias SPEI hacia tu banco.
+        </p>
+        <section className="rounded-[1.25rem] border border-border bg-card/50 p-4 sm:p-5">
+          <p className="text-center text-sm font-bold text-foreground">Documentos KYC</p>
+          <p className="mx-auto mt-2 max-w-md text-center text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
+            Imágenes claras en JPG o PNG. Tamaño máximo por imagen: {formatFileSizeForUser(MAX_FILE_BYTES)}. Si lo
+            superas, verás un mensaje en rojo en ese recuadro. Si pesa mucho, comprime la foto en tu teléfono o exporta con
+            menor calidad.
           </p>
-          <div className="mt-3 grid gap-3 sm:grid-cols-3">
-            <Input
+          <div className="mt-4 grid gap-4 sm:grid-cols-3 sm:gap-3">
+            <KycDocumentPicker
               name="idFront"
-              type="file"
-              accept="image/jpeg,image/png"
-              required
-              className="h-12 rounded-xl"
+              label="Identificación · frente"
+              hint="INE o pasaporte, lado principal"
               disabled={!canSubmitForm}
-              aria-label="Frente de identificación"
+              selectedFileName={docFileNames.idFront}
+              onSelect={(f) =>
+                setDocFileNames((s) => ({ ...s, idFront: f?.name ?? null }))
+              }
             />
-            <Input
+            <KycDocumentPicker
               name="idBack"
-              type="file"
-              accept="image/jpeg,image/png"
-              required
-              className="h-12 rounded-xl"
+              label="Identificación · reverso"
+              hint="Lado con código y datos adicionales"
               disabled={!canSubmitForm}
-              aria-label="Reverso de identificación"
+              selectedFileName={docFileNames.idBack}
+              onSelect={(f) =>
+                setDocFileNames((s) => ({ ...s, idBack: f?.name ?? null }))
+              }
             />
-            <Input
+            <KycDocumentPicker
               name="selfie"
-              type="file"
-              accept="image/jpeg,image/png"
-              required
-              className="h-12 rounded-xl"
+              label="Selfie"
+              hint="Tu rostro, bien iluminado"
               disabled={!canSubmitForm}
-              aria-label="Selfie"
+              selectedFileName={docFileNames.selfie}
+              onSelect={(f) =>
+                setDocFileNames((s) => ({ ...s, selfie: f?.name ?? null }))
+              }
             />
           </div>
         </section>
@@ -851,11 +1157,6 @@ export default function IdentidadClient({
           <section className="rounded-[1.25rem] border border-destructive/30 bg-destructive/10 px-4 py-4">
             <p className="text-sm font-semibold text-destructive">No pudimos enviar tu verificación</p>
             <p className="mt-1 text-sm text-destructive">{error}</p>
-            {lastErrorDetail ? (
-              <p className="mt-2 text-xs text-destructive/80">
-                Detalle técnico: {lastErrorDetail}
-              </p>
-            ) : null}
           </section>
         )}
         {docUploadError && (
@@ -884,14 +1185,6 @@ export default function IdentidadClient({
           ? 'Tu estado está en revisión. Pulsa "Actualizar estado" para consultar cambios.'
           : 'Cuando envíes tus datos, verás aquí el estado de validación.'}
       </p>
-
-      {allowKycTestReset && (
-        <DevKycResetPanel
-          onAfterReset={() => {
-            void runRefresh('reset')
-          }}
-        />
-      )}
     </AppPageBody>
   )
 }

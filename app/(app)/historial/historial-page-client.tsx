@@ -223,7 +223,7 @@ export default function HistorialPageClient() {
             </p>
             <h1 className="mt-2 text-3xl font-black tracking-tight text-[#41534b] dark:text-white">Historial</h1>
             <p className="mt-2 text-sm text-[#6f837a] dark:text-[#d2e9df]">
-              Conecta tu wallet para ver Stellar (testnet + mainnet) y tus órdenes Etherfuse.
+              Conecta tu wallet para ver movimientos en cadena y por transferencia.
             </p>
           </div>
         </section>
@@ -246,7 +246,7 @@ export default function HistorialPageClient() {
           </p>
           <h1 className="mt-2 text-3xl font-black tracking-tight text-[#41534b] dark:text-white">Historial</h1>
           <p className="mt-2 text-sm text-[#6f837a] dark:text-[#d2e9df]">
-            Pagos en cadena (Stellar testnet y mainnet) y movimientos reales de ramp (Etherfuse).
+            Pagos en cadena y movimientos por transferencia en un solo lugar.
           </p>
         </div>
       </section>

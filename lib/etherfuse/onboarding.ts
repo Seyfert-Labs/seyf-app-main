@@ -1,4 +1,7 @@
-import { findRampContextByWalletPublicKey } from "./customer-lookup";
+import {
+  findRampContextByWalletPublicKey,
+  findRampContextFromOrgWallets,
+} from "./customer-lookup";
 import { etherfuseFetch, etherfuseReadBody } from "./client";
 import {
   getEtherfuseDefaultBlockchain,
@@ -62,9 +65,15 @@ export async function generateOnboardingPresignedUrl(
 
 function isWalletAlreadyRegisteredError(message: string): boolean {
   const m = message.toLowerCase();
+  /** Cualquier 409 de onboarding-url suele ser conflicto de wallet ya vinculada. */
+  if (message.includes("onboarding-url") && message.includes("409")) return true;
   return (
     message.includes("409") &&
-    (m.includes("already added") || m.includes("already registered"))
+    (m.includes("already") ||
+      m.includes("registered") ||
+      m.includes("exist") ||
+      m.includes("duplicate") ||
+      m.includes("wallet"))
   );
 }
 
@@ -90,7 +99,14 @@ export async function generateOnboardingPresignedUrlResolving409(
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     if (!isWalletAlreadyRegisteredError(message)) throw e;
-    const ctx = await findRampContextByWalletPublicKey(params.publicKey);
+    let ctx = await findRampContextByWalletPublicKey(params.publicKey, {
+      fallbackBankAccountId: params.bankAccountId,
+    });
+    if (!ctx) {
+      ctx = await findRampContextFromOrgWallets(params.publicKey, {
+        fallbackBankAccountId: params.bankAccountId,
+      });
+    }
     if (!ctx) throw e;
     const { presignedUrl } = await generateOnboardingPresignedUrl({
       ...params,

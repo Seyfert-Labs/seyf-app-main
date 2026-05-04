@@ -1,5 +1,5 @@
 /**
- * Permite el botón «Reiniciar prueba» en /identidad (borra cookie de sesión Etherfuse).
+ * Permite «Reiniciar verificación» en /dev (borra cookie de sesión Etherfuse en el navegador).
  * En desarrollo está activo por defecto; en prod solo si SEYF_ALLOW_KYC_RESET=true.
  */
 export function isKycTestResetEnabled(): boolean {

@@ -1,17 +1,37 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { extractOrderIdFromCreateOrderResponse } from "@/lib/etherfuse/order-create-response";
-import { resolveMvpPartnerCryptoWalletId } from "@/lib/etherfuse/partner-accounts";
 import { createMxOnrampOrder } from "@/lib/etherfuse/ramp-api";
+import { acceptAllEtherfuseAgreements } from "@/lib/etherfuse/agreements";
+import { generateOnboardingPresignedUrlResolving409 } from "@/lib/etherfuse/onboarding";
 import { AppError, toErrorResponse } from "@/lib/seyf/api-error";
+import { upsertStoredAgreementsAccepted } from "@/lib/seyf/agreements-state-store";
 import { assertEtherfuseKycApproved } from "@/lib/seyf/etherfuse-kyc-guard";
 import { getEtherfuseRampContext } from "@/lib/seyf/etherfuse-ramp-context";
 import { guardEtherfuseRampRoutes } from "@/lib/seyf/etherfuse-ramp-guard";
-import { assertWalletActiveForUser } from "@/lib/seyf/wallet-provisioning";
 
 const bodySchema = z.object({
   quoteId: z.string().uuid(),
 });
+
+async function ensureAgreementsForWallet(ctx: {
+  customerId: string;
+  bankAccountId: string;
+  publicKey: string;
+}): Promise<void> {
+  const resolved = await generateOnboardingPresignedUrlResolving409({
+    customerId: ctx.customerId,
+    bankAccountId: ctx.bankAccountId,
+    publicKey: ctx.publicKey,
+  });
+  await acceptAllEtherfuseAgreements({
+    presignedUrl: resolved.presignedUrl,
+  });
+  await upsertStoredAgreementsAccepted({
+    customerId: resolved.customerId,
+    walletPublicKey: ctx.publicKey,
+  });
+}
 
 /**
  * POST /api/seyf/etherfuse/order/onramp
@@ -49,20 +69,28 @@ export async function POST(req: Request) {
       customerId: ctx.customerId,
       publicKey: ctx.publicKey,
     });
-    await assertWalletActiveForUser(ctx.customerId);
-    let cryptoWalletId: string | undefined;
+    const buildOrder = () =>
+      createMxOnrampOrder({
+        bankAccountId: ctx.bankAccountId,
+        quoteId: parsed.data.quoteId,
+        publicKey: ctx.publicKey,
+      });
+    let order: unknown;
     try {
-      cryptoWalletId = await resolveMvpPartnerCryptoWalletId(ctx.publicKey);
-    } catch {
-      cryptoWalletId = undefined;
+      order = await buildOrder();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.toLowerCase().includes("terms and conditions")) {
+        await ensureAgreementsForWallet({
+          customerId: ctx.customerId,
+          bankAccountId: ctx.bankAccountId,
+          publicKey: ctx.publicKey,
+        });
+        order = await buildOrder();
+      } else {
+        throw e;
+      }
     }
-    const order = await createMxOnrampOrder({
-      bankAccountId: ctx.bankAccountId,
-      quoteId: parsed.data.quoteId,
-      ...(cryptoWalletId
-        ? { cryptoWalletId }
-        : { publicKey: ctx.publicKey }),
-    });
     const orderId = extractOrderIdFromCreateOrderResponse(order);
     return NextResponse.json({
       order,

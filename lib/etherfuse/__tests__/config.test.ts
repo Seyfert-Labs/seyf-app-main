@@ -11,6 +11,7 @@ const TRACKED_KEYS = [
   "ETHERFUSE_WEBHOOK_SECRET",
   "SEYF_ALLOW_ETHERFUSE_RAMP",
   "NODE_ENV",
+  "VERCEL_ENV",
 ];
 
 for (const key of TRACKED_KEYS) {
@@ -98,15 +99,29 @@ describe("getEtherfuseConfig() — unit tests", () => {
   it("throws when ETHERFUSE_WEBHOOK_SECRET is missing in production (Req 1.4)", () => {
     process.env.ETHERFUSE_API_KEY = "test-api-key";
     process.env.NODE_ENV = "production";
+    process.env.VERCEL_ENV = "production";
     process.env.SEYF_ALLOW_ETHERFUSE_RAMP = "true";
     delete process.env.ETHERFUSE_WEBHOOK_SECRET;
 
     expect(() => getEtherfuseConfig()).toThrow("ETHERFUSE_WEBHOOK_SECRET");
   });
 
+  it("no exige ETHERFUSE_WEBHOOK_SECRET en Vercel preview aunque NODE_ENV sea production", () => {
+    process.env.ETHERFUSE_API_KEY = "test-api-key";
+    process.env.NODE_ENV = "production";
+    process.env.VERCEL_ENV = "preview";
+    delete process.env.ETHERFUSE_WEBHOOK_SECRET;
+    process.env.SEYF_ALLOW_ETHERFUSE_RAMP = "false";
+
+    const config = getEtherfuseConfig();
+    expect(config.webhookSecret).toBeNull();
+    expect(config.allowRamp).toBe(false);
+  });
+
   it("throws when SEYF_ALLOW_ETHERFUSE_RAMP is not 'true' in production (Req 1.5)", () => {
     process.env.ETHERFUSE_API_KEY = "test-api-key";
     process.env.NODE_ENV = "production";
+    process.env.VERCEL_ENV = "production";
     process.env.ETHERFUSE_WEBHOOK_SECRET = "secret";
     process.env.SEYF_ALLOW_ETHERFUSE_RAMP = "false";
 

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import path from 'node:path'
 
-export type AdvanceStatus = 'pending' | 'completed' | 'failed'
+export type AdvanceStatus = 'pending' | 'completed' | 'failed' | 'liquidated'
 
 export type AdvanceRecord = {
   id: string
@@ -13,6 +13,12 @@ export type AdvanceRecord = {
   net_mxn: number
   status: AdvanceStatus
   stellar_tx_hash: string | null
+  years: number
+  rate_percent: number
+  principal_mxn_snapshot: number
+  due_at: string
+  liquidated_at: string | null
+  liquidation_fee_mxn: number | null
   created_at: string
 }
 
@@ -48,6 +54,8 @@ export async function createAdvanceRecord(record: Omit<AdvanceRecord, 'id' | 'cr
     id: randomUUID(),
     status: 'pending',
     stellar_tx_hash: null,
+    liquidated_at: null,
+    liquidation_fee_mxn: null,
     created_at: new Date().toISOString(),
   }
   store.advances.push(newRecord)
@@ -66,10 +74,15 @@ export async function updateAdvanceRecord(id: string, updates: Partial<AdvanceRe
 
 export async function getAdvanceByCycle(userId: string, cycleId: string): Promise<AdvanceRecord | null> {
   const store = await loadStore()
-  return store.advances.find((a) => a.user_id === userId && a.cycle_id === cycleId) || null
+  return store.advances.find((a) => a.user_id === userId && a.cycle_id === cycleId && a.status === 'completed') || null
 }
 
 export async function listUserAdvances(userId: string): Promise<AdvanceRecord[]> {
   const store = await loadStore()
-  return store.advances.filter((a) => a.user_id === userId)
+  return store.advances.filter((a) => a.user_id === userId).sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at))
+}
+
+export async function getAdvanceById(userId: string, advanceId: string): Promise<AdvanceRecord | null> {
+  const store = await loadStore()
+  return store.advances.find((a) => a.user_id === userId && a.id === advanceId) || null
 }

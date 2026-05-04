@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutGrid, PlusCircle, Clock } from 'lucide-react'
+import { LayoutGrid, ArrowDownToLine, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navItems = [
@@ -12,9 +12,9 @@ const navItems = [
     icon: LayoutGrid,
   },
   {
-    href: '/depositar',
+    href: '/anadir',
     label: 'Depositar',
-    icon: PlusCircle,
+    icon: ArrowDownToLine,
   },
   {
     href: '/historial',

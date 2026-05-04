@@ -124,6 +124,7 @@ Referencia actual:
 - `app/api/seyf/kyc/status/route.ts`
 - `app/api/webhooks/etherfuse/route.ts`
 - `lib/seyf/kyc-state-store.ts`
+- `app/(app)/dev/etherfuse-ops/page.tsx`
 
 Gate:
 
@@ -223,6 +224,7 @@ Casos de error obligatorios:
 - no usar `ETHERFUSE_MVP_*` en producción
 - usar exclusivamente contexto por cookie de onboarding
 - webhook firmado obligatorio (`ETHERFUSE_WEBHOOK_SECRET`)
+- opcional: proteger `/api/seyf/etherfuse/ops/*` con `SEYF_ETHERFUSE_OPS_TOKEN`
 
 ---
 

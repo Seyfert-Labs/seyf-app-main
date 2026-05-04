@@ -2,7 +2,10 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { submitEtherfuseKycIdentityData } from '@/lib/etherfuse/kyc'
 import { generateOnboardingPresignedUrlResolving409 } from '@/lib/etherfuse/onboarding'
-import { registerOrganizationWallet } from '@/lib/etherfuse/wallets'
+import {
+  isRecoverableRegisterWalletConflict,
+  registerOrganizationWallet,
+} from '@/lib/etherfuse/wallets'
 import {
   getEtherfuseOnboardingSession,
   resolveOnboardingIds,
@@ -14,22 +17,34 @@ import {
   normalizeStellarPublicKey,
 } from '@/lib/etherfuse/stellar-public-key'
 import { AppError, toErrorResponse } from '@/lib/seyf/api-error'
+import { normalizeDateOfBirthToIso } from '@/lib/seyf/normalize-date-of-birth'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+/** Evita que `""` falle reglas `.email()` / `.min()` en campos que Etherfuse trata como omitidos. */
+function emptyToUndefined(v: unknown): unknown {
+  return typeof v === 'string' && v.trim() === '' ? undefined : v
+}
+
 const bodySchema = z.object({
   publicKey: z.string().trim().min(1),
   identity: z.object({
-    id: z.string().trim().min(1).optional(),
-    email: z.string().trim().email().optional(),
-    phoneNumber: z.string().trim().min(5).optional(),
-    occupation: z.string().trim().min(2).optional(),
+    id: z.preprocess(emptyToUndefined, z.string().trim().min(1).optional()),
+    email: z.preprocess(emptyToUndefined, z.string().trim().email().optional()),
+    phoneNumber: z.preprocess(emptyToUndefined, z.string().trim().min(5).optional()),
+    occupation: z.preprocess(emptyToUndefined, z.string().trim().min(2).optional()),
     name: z.object({
       givenName: z.string().trim().min(1),
       familyName: z.string().trim().min(1),
     }),
-    dateOfBirth: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
+    dateOfBirth: z
+      .string()
+      .trim()
+      .refine((s) => normalizeDateOfBirthToIso(s) !== null, {
+        message: 'identity.dateOfBirth must be a valid date (YYYY-MM-DD)',
+      })
+      .transform((s) => normalizeDateOfBirthToIso(s)!),
     address: z.object({
       street: z.string().trim().min(1),
       city: z.string().trim().min(1),
@@ -51,14 +66,10 @@ const bodySchema = z.object({
 
 function mapKycProviderSetupError(message: string): AppError | null {
   const m = message.toLowerCase()
-  if (m.includes('already added user with this address') || m.includes('see org:')) {
-    return new AppError('validation_error', {
-      statusCode: 409,
-      retryable: false,
-      message:
-        'Esta wallet ya está vinculada a otra organización de Etherfuse. Usa una wallet nueva o alinea tu API key con la org correcta.',
-    })
-  }
+  /**
+   * No mapear `see org:` / “otra organización”: Etherfuse lo usa también para conflicto de
+   * customerId dentro de la misma API key; el mensaje fijo confundía y bloqueaba KYC injustamente.
+   */
   if (m.includes('organization not found')) {
     return new AppError('validation_error', {
       statusCode: 400,
@@ -108,10 +119,14 @@ export async function POST(req: Request) {
         claimOwnership: true,
       })
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
-      const mapped = mapKycProviderSetupError(msg)
-      if (mapped) throw mapped
-      throw e
+      if (isRecoverableRegisterWalletConflict(e)) {
+        // Wallet ya figura en la org; seguimos para onboarding-url + resolución 409 / customerId real.
+      } else {
+        const msg = e instanceof Error ? e.message : String(e)
+        const mapped = mapKycProviderSetupError(msg)
+        if (mapped) throw mapped
+        throw e
+      }
     }
     // Ensure customer/bank-account context exists in Etherfuse before programmatic KYC submit.
     let resolved: { customerId: string; bankAccountId: string; presignedUrl: string }

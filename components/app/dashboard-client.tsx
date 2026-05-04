@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import { animate, useMotionValue, useReducedMotion } from 'framer-motion'
-import { ChevronRight, Eye, EyeOff, TrendingUp, Wallet, Zap } from 'lucide-react'
+import { ChevronRight, Eye, EyeOff, TrendingUp, Wallet, X, Zap } from 'lucide-react'
 import { useSeyfWallet } from '@/lib/seyf/use-seyf-wallet'
 import { AppPageBody } from '@/components/app/app-page-body'
 import { DashboardHeroCarousel } from '@/components/app/dashboard-hero-carousel'
@@ -26,6 +26,7 @@ import { formatMovementListSubtitle, type UserMovement } from '@/lib/seyf/user-m
 import { formatMXN, formatLoUltimoMonto } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import type { EtherfuseKycSnapshot } from '@/lib/etherfuse/kyc'
+import { isPublicStellarTestnet } from '@/lib/seyf/stellar-wallet-network'
 
 function formatMontoOculto() {
   return '••••'
@@ -77,17 +78,24 @@ const kycStatusFetcher = (url: string): Promise<EtherfuseKycSnapshot | null> =>
     return body.kyc ?? null
   })
 
+const advanceSimFetcher = (
+  url: string,
+): Promise<{ max_advance_mxn?: number; error?: string; advance_available?: boolean }> =>
+  fetch(url, POLL_FETCH_INIT).then(async (r) => {
+    if (!r.ok) throw new Error(`${r.status}`)
+    return (await r.json()) as { max_advance_mxn?: number; error?: string; advance_available?: boolean }
+  })
+
 export default function DashboardClient({
-  showEtherfuseRampDev = false,
   vm,
 }: {
-  showEtherfuseRampDev?: boolean
   vm: DashboardViewModel
 }) {
   const { wallet, assetBalances, loading, refreshBalance } = useSeyfWallet()
   const [selected, setSelected] = useState<UserMovement | null>(null)
   const [hideBalances, setHideBalances] = useState(false)
   const [lastUpdateAt, setLastUpdateAt] = useState<Date>(new Date())
+  const [heroIndex, setHeroIndex] = useState(0)
   const [stablebondCetes, setStablebondCetes] = useState<{
     loading: boolean
     annualPercent: number | null
@@ -95,6 +103,11 @@ export default function DashboardClient({
     calculatedAt?: string
   }>({ loading: false, annualPercent: null, priceMx: null })
   const [stellarMovements, setStellarMovements] = useState<UserMovement[]>([])
+  const [welcomeBonusBusy, setWelcomeBonusBusy] = useState(false)
+  const [welcomeBonusClaimed, setWelcomeBonusClaimed] = useState(false)
+  const [welcomeBonusMessage, setWelcomeBonusMessage] = useState<string | null>(null)
+  const [referralDismissCount, setReferralDismissCount] = useState(0)
+  const [referralHiddenUntil, setReferralHiddenUntil] = useState(0)
 
   const { data = vm, error, mutate } = useSWR<DashboardViewModel>(
     '/api/seyf/dashboard',
@@ -113,6 +126,16 @@ export default function DashboardClient({
     kycStatusFetcher,
     {
       refreshInterval: 45_000,
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+      dedupingInterval: 2_000,
+    },
+  )
+  const { data: advanceSim } = useSWR<{ max_advance_mxn?: number; error?: string; advance_available?: boolean }>(
+    '/api/seyf/advance/simulate?years=1',
+    advanceSimFetcher,
+    {
+      refreshInterval: 60_000,
       revalidateOnFocus: true,
       revalidateOnReconnect: true,
       dedupingInterval: 2_000,
@@ -137,6 +160,8 @@ export default function DashboardClient({
   }, [mutate])
 
   const activeCycle = data.principalMxn > 0
+  const effectiveAdelantableMxn = Math.max(0, advanceSim?.max_advance_mxn ?? data.adelantableMxn ?? 0)
+  const effectiveAdvanceUsed = advanceSim?.error === 'advance_already_used' ? true : data.advanceUsed
   const kycBadge =
     kycStatus?.status === 'approved' || kycStatus?.status === 'approved_chain_deploying'
       ? {
@@ -165,6 +190,98 @@ export default function DashboardClient({
               href: '/identidad',
               action: 'Verificar ahora',
             }
+
+  useEffect(() => {
+    if (activeCycle) return
+    void fetch('/api/seyf/etherfuse/bonus/welcome', { cache: 'no-store' })
+      .then(async (r) => {
+        const j = (await r.json().catch(() => ({}))) as {
+          claimed?: boolean
+          claim?: { amountMxn?: number }
+        }
+        if (!r.ok) return
+        if (j.claimed) {
+          setWelcomeBonusClaimed(true)
+          setWelcomeBonusMessage(
+            typeof j.claim?.amountMxn === 'number'
+              ? `Bono activado por ${formatMXN(j.claim.amountMxn)} en testnet.`
+              : 'Bono de bienvenida ya activado en testnet.',
+          )
+        }
+      })
+      .catch(() => {
+        // noop
+      })
+  }, [activeCycle])
+
+  useEffect(() => {
+    try {
+      const count = Number.parseInt(window.localStorage.getItem('seyf_referral_dismiss_count') ?? '0', 10)
+      const until = Number.parseInt(window.localStorage.getItem('seyf_referral_hidden_until') ?? '0', 10)
+      if (Number.isFinite(count)) setReferralDismissCount(Math.max(0, count))
+      if (Number.isFinite(until)) setReferralHiddenUntil(Math.max(0, until))
+    } catch {
+      // noop
+    }
+  }, [])
+
+  const claimWelcomeBonus = async () => {
+    setWelcomeBonusBusy(true)
+    setWelcomeBonusMessage(null)
+    try {
+      const r = await fetch('/api/seyf/etherfuse/bonus/welcome', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      const j = (await r.json().catch(() => ({}))) as {
+        ok?: boolean
+        alreadyClaimed?: boolean
+        amountMxn?: number
+        error?: { message_es?: string }
+      }
+      if (!r.ok || !j.ok) {
+        setWelcomeBonusMessage(j.error?.message_es ?? `No se pudo activar el bono (HTTP ${r.status}).`)
+        return
+      }
+      setWelcomeBonusClaimed(true)
+      const amount = typeof j.amountMxn === 'number' ? j.amountMxn : 300
+      setWelcomeBonusMessage(
+        j.alreadyClaimed
+          ? 'Bono de bienvenida ya estaba activado para esta cuenta.'
+          : `Bono de bienvenida activado: ${formatMXN(amount)} enviados a tu wallet (sandbox).`,
+      )
+      await mutate()
+      await refreshBalance()
+    } catch {
+      setWelcomeBonusMessage('No se pudo activar el bono en este momento.')
+    } finally {
+      setWelcomeBonusBusy(false)
+    }
+  }
+
+  const dismissReferralCard = () => {
+    const nextCount = referralDismissCount + 1
+    // Se vuelve a mostrar solo: tiempo de ocultación incremental.
+    const hideMinutes = Math.min(10 + nextCount * 5, 60)
+    const until = Date.now() + hideMinutes * 60_000
+    setReferralDismissCount(nextCount)
+    setReferralHiddenUntil(until)
+    try {
+      window.localStorage.setItem('seyf_referral_dismiss_count', String(nextCount))
+      window.localStorage.setItem('seyf_referral_hidden_until', String(until))
+    } catch {
+      // noop
+    }
+  }
+
+  const referralVisible = welcomeBonusClaimed && Date.now() >= referralHiddenUntil
+  const whatsappInviteHref = useMemo(() => {
+    const base = typeof window !== 'undefined' ? window.location.origin : 'https://seyf.mx'
+    const text =
+      `Estoy probando Seyf y ya recibí mi bono de bienvenida. ` +
+      `Únete con mi invitación y recibe 200 CETES al instante: ${base}`
+    return `https://wa.me/?text=${encodeURIComponent(text)}`
+  }, [])
 
   useEffect(() => {
     try {
@@ -258,6 +375,11 @@ export default function DashboardClient({
     () => cetesBalanceEquivMxne(cetesBalance, stablebondCetes.priceMx),
     [cetesBalance, stablebondCetes.priceMx],
   )
+  const testnetWalletTotalMxn = useMemo(() => {
+    const cetes = cetesEquivMxne ?? 0
+    return mxne + cetes
+  }, [mxne, cetesEquivMxne])
+  const principalForHero = isPublicStellarTestnet() ? testnetWalletTotalMxn : mxne
 
   if (loading && !wallet) {
     return (
@@ -344,18 +466,20 @@ export default function DashboardClient({
       <div className="relative">
         <DashboardHeroCarousel
           data={{
-            principal: hideBalances ? 0 : mxne,
-            adelantable: hideBalances ? 0 : data.adelantableMxn,
+            principal: hideBalances ? 0 : principalForHero,
+            adelantable: hideBalances ? 0 : effectiveAdelantableMxn,
             puntos: data.puntos,
             tasaAnual: data.tasaAnual,
-            advanceUsed: data.advanceUsed,
+            advanceUsed: effectiveAdvanceUsed,
             stablebondCetes,
             cetesWallet: {
               balance: hideBalances ? 0 : cetesBalance,
               equivMxne: hideBalances ? null : cetesEquivMxne,
               priceLoading: stablebondCetes.loading,
             },
+            isTestnet: isPublicStellarTestnet(),
           }}
+          onIndexChange={setHeroIndex}
         />
         {hideBalances ? (
           <div className="pointer-events-none absolute inset-0 grid place-items-center rounded-[1.75rem] bg-background/35 backdrop-blur-[2px]">
@@ -372,28 +496,45 @@ export default function DashboardClient({
         </p>
       ) : null}
 
-      {!activeCycle && (
+      {!activeCycle && !welcomeBonusClaimed && (
         <section className="relative overflow-hidden rounded-[1.65rem] border border-[#c6d9d0] bg-gradient-to-br from-[#0d3531] via-[#15534a] to-[#1f6559] p-5">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.18),transparent_55%)]" />
           <div className="relative flex items-stretch gap-3">
             <div className="min-w-0 flex-1">
               <p className="inline-flex rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#d8efe5]">
-                Comienza hoy
+                Testnet
               </p>
               <p className="mt-3 text-xl font-black leading-tight tracking-tight text-white">
-                Deposita tu capital
-                <br />
-                para empezar
+                Bono bienvenida
+                <br />300 MXN a CETES
               </p>
               <p className="mt-2 text-xs leading-relaxed text-[#d2e9df]">
-                Activa tu ciclo con tu primer depósito y desbloquea rendimiento y adelantos.
+                Creamos una orden onramp de prueba y simulamos el depósito para fondear tu wallet y probar la app.
               </p>
-              <Button
-                asChild
-                className="mt-4 h-10 rounded-full bg-white px-4 text-sm font-bold text-[#184e46] hover:bg-white/90"
-              >
-                <Link href="/anadir">Depositar ahora</Link>
-              </Button>
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                <Button
+                  type="button"
+                  onClick={() => void claimWelcomeBonus()}
+                  disabled={welcomeBonusBusy || welcomeBonusClaimed}
+                  className="h-10 rounded-full bg-white px-4 text-sm font-bold text-[#184e46] hover:bg-white/90 disabled:bg-white/70"
+                >
+                  {welcomeBonusBusy
+                    ? 'Activando...'
+                    : welcomeBonusClaimed
+                      ? 'Bono activado'
+                      : 'Activar bono'}
+                </Button>
+                <Button
+                  asChild
+                  variant="secondary"
+                  className="h-10 rounded-full border border-white/20 bg-white/10 px-4 text-sm font-bold text-white hover:bg-white/20"
+                >
+                  <Link href="/anadir">Ver depósito</Link>
+                </Button>
+              </div>
+              {welcomeBonusMessage ? (
+                <p className="mt-2 text-xs leading-relaxed text-[#d2e9df]">{welcomeBonusMessage}</p>
+              ) : null}
             </div>
             <div className="relative w-[40%] min-w-[7.5rem] overflow-hidden rounded-2xl border border-white/20 bg-white/10">
               <Image
@@ -405,6 +546,39 @@ export default function DashboardClient({
                 priority={false}
               />
             </div>
+          </div>
+        </section>
+      )}
+
+      {referralVisible && (
+        <section className="relative overflow-hidden rounded-[1.65rem] border border-[#c6d9d0] bg-gradient-to-br from-[#123b35] via-[#18584f] to-[#23695c] p-5 text-white">
+          <button
+            type="button"
+            onClick={dismissReferralCard}
+            className="absolute right-3 top-3 inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/25 bg-white/10 hover:bg-white/20"
+            aria-label="Cerrar invitación"
+          >
+            <X className="size-4" />
+          </button>
+          <p className="inline-flex rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#d8efe5]">
+            Refiere y gana
+          </p>
+          <p className="mt-3 text-xl font-black leading-tight tracking-tight">
+            Refiere a un amigo y recibe
+            <br />200 CETES al instante
+          </p>
+          <p className="mt-2 text-xs leading-relaxed text-[#d2e9df]">
+            Comparte tu invitación por WhatsApp. Cuando entre con tu enlace, activas recompensa.
+          </p>
+          <div className="mt-4">
+            <Button
+              asChild
+              className="h-10 rounded-full bg-white px-4 text-sm font-bold text-[#184e46] hover:bg-white/90"
+            >
+              <a href={whatsappInviteHref} target="_blank" rel="noreferrer">
+                Compartir por WhatsApp
+              </a>
+            </Button>
           </div>
         </section>
       )}
@@ -479,88 +653,156 @@ export default function DashboardClient({
         <div className="pointer-events-none absolute -right-16 -top-20 h-44 w-44 rounded-full bg-[#9ec7b3]/18 blur-3xl dark:bg-[#6ba690]/20" />
         <div className="pointer-events-none absolute -bottom-24 -left-12 h-40 w-40 rounded-full bg-[#b8b8b5]/14 blur-3xl dark:bg-[#22433c]/40" />
 
-        <div className="relative space-y-4 p-4">
-          <Link
-            href="/historial"
-            className="flex items-center justify-between rounded-xl py-1 transition hover:opacity-90"
-          >
-            <div>
-              <p className="text-sm font-bold text-foreground">
-                {data.adelantableMxn > 0
-                  ? 'Tienes un adelanto de rendimiento disponible'
-                  : 'Activa tu cuenta para habilitar adelantos'}
-              </p>
-              <p className="text-[11px] text-muted-foreground dark:text-[#d2e9df]">
-                Simulación de condiciones en tiempo real
-              </p>
-            </div>
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/90 ring-1 ring-[#cad9d1] dark:bg-white/15 dark:ring-white/20">
-              <ChevronRight className="size-4 text-foreground dark:text-white" />
-            </span>
-          </Link>
+        <div className="relative p-4">
+          {heroIndex === 0 && (
+            <div className="space-y-4">
+              <Link
+                href="/historial"
+                className="flex items-center justify-between rounded-xl py-1 transition hover:opacity-90"
+              >
+                <div>
+                  <p className="text-sm font-bold text-foreground">Tu resumen de saldos en tiempo real</p>
+                  <p className="text-[11px] text-muted-foreground dark:text-[#d2e9df]">
+                    Principal, rendimiento y liquidez disponible
+                  </p>
+                </div>
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/90 ring-1 ring-[#cad9d1] dark:bg-white/15 dark:ring-white/20">
+                  <ChevronRight className="size-4 text-foreground dark:text-white" />
+                </span>
+              </Link>
 
-          <div className="relative overflow-hidden rounded-2xl border border-[#cad9d1] bg-gradient-to-br from-[#d8e8e0] via-[#d3e2dc] to-[#cddbd5] p-4 shadow-inner ring-1 ring-[#b8d1c5]/60 dark:border-[#2b4a43] dark:bg-gradient-to-br dark:from-[#10413a] dark:via-[#15534a] dark:to-[#1b6155] dark:ring-[#2b4a43]/70">
-            <div className="flex items-center gap-3">
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/65 backdrop-blur-sm dark:bg-white/15">
-                <Wallet className="size-6 text-[#5f7168] dark:text-[#d2e9df]" strokeWidth={2} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#5f7168] dark:text-[#cde5db]">
-                  {data.adelantableMxn > 0 ? 'Adelanto preaprobado' : 'Saldo disponible'}
-                </p>
-                <p className="mt-0.5 text-2xl font-black tabular-nums tracking-tight text-foreground dark:text-white">
-                  {hideBalances
-                    ? formatMontoOculto()
-                    : data.adelantableMxn > 0
-                      ? formatMXN(data.adelantableMxn)
-                      : formatMXN(mxne)}
-                </p>
-                <p className="mt-1 text-[11px] text-muted-foreground dark:text-[#d2e9df]">
-                  {data.adelantableMxn > 0 ? 'Monto estimado inmediato' : 'Tu posición principal'}
-                </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-2xl border border-[#cad9d1] bg-white/70 p-3.5 ring-1 ring-[#dbe7e1] dark:border-[#2b4a43] dark:bg-white/10 dark:ring-white/10">
+                  <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-foreground/5 dark:bg-white/10">
+                    <Wallet className="size-4 text-foreground dark:text-white" strokeWidth={2.25} />
+                  </div>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground dark:text-[#cde5db]">
+                    Principal
+                  </p>
+                  <p className="mt-1 text-base font-black tabular-nums text-foreground dark:text-white">
+                    {hideBalances ? formatMontoOculto() : formatMXN(mxne)}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-[#cad9d1] bg-white/70 p-3.5 ring-1 ring-[#dbe7e1] dark:border-[#2b4a43] dark:bg-white/10 dark:ring-white/10">
+                  <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-foreground/5 dark:bg-white/10">
+                    <TrendingUp className="size-4 text-foreground dark:text-white" strokeWidth={2.25} />
+                  </div>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground dark:text-[#cde5db]">
+                    Rendimiento
+                  </p>
+                  <p className="mt-1 text-base font-black tabular-nums text-foreground dark:text-white">
+                    {hideBalances ? formatMontoOculto() : <RendimientoCounter value={data.rendimientoMxn} />}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-2xl border border-[#cad9d1] bg-white/70 p-3.5 ring-1 ring-[#dbe7e1] dark:border-[#2b4a43] dark:bg-white/10 dark:ring-white/10">
-              <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-foreground/5 dark:bg-white/10">
-                <TrendingUp className="size-4 text-foreground dark:text-white" strokeWidth={2.25} />
+          {heroIndex === 1 && (
+            <div className="space-y-4">
+              <Link
+                href="/adelanto"
+                className="flex items-center justify-between rounded-xl py-1 transition hover:opacity-90"
+              >
+                <div>
+                  <p className="text-sm font-bold text-foreground">
+                    {effectiveAdelantableMxn > 0
+                      ? 'Adelanto disponible para este ciclo'
+                      : 'Aún no tienes adelanto habilitado'}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground dark:text-[#d2e9df]">
+                    Liquidez inmediata sin tocar tu capital principal
+                  </p>
+                </div>
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/90 ring-1 ring-[#cad9d1] dark:bg-white/15 dark:ring-white/20">
+                  <ChevronRight className="size-4 text-foreground dark:text-white" />
+                </span>
+              </Link>
+
+              <div className="relative overflow-hidden rounded-2xl border border-[#c0d6ca] bg-gradient-to-br from-[#dcebe4] via-[#d3e5dc] to-[#c8ddd3] p-4 ring-1 ring-[#b9d1c4]/70 dark:border-[#2b4a43] dark:from-[#10413a] dark:via-[#15534a] dark:to-[#1b6155] dark:ring-[#2b4a43]/80">
+                <div className="pointer-events-none absolute -right-10 -top-12 h-28 w-28 rounded-full bg-[#8ab9a3]/25 blur-2xl dark:bg-[#4d8c77]/30" />
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#4d6a5f] dark:text-[#d2e9df]">
+                  Monto adelantable
+                </p>
+                <p className="mt-1 text-3xl font-black tracking-tight text-foreground dark:text-white">
+                  {hideBalances ? formatMontoOculto() : formatMXN(effectiveAdelantableMxn)}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground dark:text-[#d2e9df]">
+                  {effectiveAdelantableMxn > 0
+                    ? 'Disponible para solicitar ahora.'
+                    : 'Completa verificación y ciclo activo para habilitarlo.'}
+                </p>
               </div>
-              <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground dark:text-[#cde5db]">
-                Rendimiento
-              </p>
-              <p className="mt-1 text-base font-black tabular-nums text-foreground dark:text-white">
-                {hideBalances ? formatMontoOculto() : <RendimientoCounter value={data.rendimientoMxn} />}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-[#cad9d1] bg-white/70 p-3.5 ring-1 ring-[#dbe7e1] dark:border-[#2b4a43] dark:bg-white/10 dark:ring-white/10">
-              <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-foreground/5 dark:bg-white/10">
-                <Zap className="size-4 text-[#7c9387] dark:text-[#cde5db]" strokeWidth={2.25} />
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-2xl border border-[#c0d6ca] bg-white/70 p-3.5 ring-1 ring-[#d7e5df] dark:border-[#2b4a43] dark:bg-white/10 dark:ring-white/10">
+                  <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-[#dcebe4] dark:bg-[#1f4f46]">
+                    <TrendingUp className="size-4 text-[#46665a] dark:text-[#d2e9df]" strokeWidth={2.25} />
+                  </div>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground dark:text-[#d9e7e1]">
+                    Rendimiento
+                  </p>
+                  <p className="mt-1 text-base font-black tabular-nums text-foreground dark:text-white">
+                    {hideBalances ? formatMontoOculto() : <RendimientoCounter value={data.rendimientoMxn} />}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-[#c0d6ca] bg-white/70 p-3.5 ring-1 ring-[#d7e5df] dark:border-[#2b4a43] dark:bg-white/10 dark:ring-white/10">
+                  <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-[#dcebe4] dark:bg-[#1f4f46]">
+                    <Zap className="size-4 text-[#46665a] dark:text-[#d2e9df]" strokeWidth={2.25} />
+                  </div>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground dark:text-[#d9e7e1]">
+                    Estado
+                  </p>
+                  <p className="mt-1 text-sm font-black text-foreground dark:text-white">
+                    {effectiveAdelantableMxn > 0 ? 'Listo para pedir' : 'Bloqueado'}
+                  </p>
+                </div>
               </div>
-              <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground dark:text-[#cde5db]">
-                Adelanto
-              </p>
-              <p className="mt-1 text-base font-black tabular-nums text-foreground dark:text-white">
-                {hideBalances ? formatMontoOculto() : formatMXN(data.adelantableMxn)}
-              </p>
             </div>
-          </div>
+          )}
+
+          {heroIndex === 2 && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between rounded-xl py-1">
+                <div>
+                  <p className="text-sm font-bold text-foreground">Seyf Puntos</p>
+                  <p className="text-[11px] text-muted-foreground dark:text-[#d2e9df]">
+                    Acumula por uso y referidos. Canjes en la siguiente fase.
+                  </p>
+                </div>
+                <span className="rounded-full border border-border bg-white/80 px-2 py-1 text-[10px] font-bold text-muted-foreground dark:bg-white/10 dark:text-[#d2e9df]">
+                  Próximamente
+                </span>
+              </div>
+
+              <div className="rounded-2xl border border-[#cad9d1] bg-white/70 p-4 ring-1 ring-[#dbe7e1] dark:border-[#2b4a43] dark:bg-white/10 dark:ring-white/10">
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground dark:text-[#d9e7e1]">
+                  Puntos acumulados
+                </p>
+                <p className="mt-1 text-3xl font-black tracking-tight text-foreground dark:text-white">
+                  {data.puntos.toLocaleString('es-MX')}
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground dark:text-[#d2e9df]">
+                  En el siguiente paso pulimos catálogo y niveles de beneficios.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
       {activeCycle && (
-        <section className="relative overflow-hidden rounded-[1.6rem] border border-violet-500/20 bg-gradient-to-br from-violet-100 via-indigo-100 to-sky-100 p-5 shadow-[0_16px_45px_rgba(76,29,149,0.16)] dark:border-violet-400/25 dark:from-violet-700/35 dark:via-indigo-700/25 dark:to-sky-700/20 dark:shadow-[0_16px_45px_rgba(76,29,149,0.35)]">
-          <div className="pointer-events-none absolute -right-14 -top-20 h-44 w-44 rounded-full bg-violet-400/25 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-20 -left-12 h-40 w-40 rounded-full bg-cyan-400/20 blur-3xl" />
+        <section className="relative overflow-hidden rounded-[1.6rem] border border-[#c0d6ca] bg-gradient-to-br from-[#e4efe9] via-[#d9e9e1] to-[#cde1d7] p-5 shadow-[0_16px_45px_rgba(35,94,77,0.16)] dark:border-[#2b4a43] dark:from-[#0f3b36] dark:via-[#15534a] dark:to-[#1b5b50] dark:shadow-[0_16px_45px_rgba(20,83,74,0.35)]">
+          <div className="pointer-events-none absolute -right-14 -top-20 h-44 w-44 rounded-full bg-[#8ab9a3]/30 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-20 -left-12 h-40 w-40 rounded-full bg-[#9bc4b2]/25 blur-3xl" />
           <div className="relative">
-            <div className="inline-flex items-center rounded-full border border-violet-500/20 bg-background/65 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-violet-700 dark:border-violet-200/25 dark:bg-black/20 dark:text-violet-100/90">
+            <div className="inline-flex items-center rounded-full border border-[#9fc5b5]/40 bg-background/65 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#46665a] dark:border-white/25 dark:bg-black/20 dark:text-[#d2e9df]">
               Adelanto disponible
             </div>
             <p className="mt-2 text-3xl font-black tabular-nums tracking-tight text-foreground dark:text-white">
-              {hideBalances ? formatMontoOculto() : formatMXN(data.adelantableMxn)}
+              {hideBalances ? formatMontoOculto() : formatMXN(effectiveAdelantableMxn)}
             </p>
-            <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground dark:text-violet-100/80">
+            <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground dark:text-[#d2e9df]">
               Recibe una parte de tu rendimiento hoy, sin retirar tu capital.
             </p>
             <div className="mt-3 grid grid-cols-3 gap-2">
@@ -571,14 +813,14 @@ export default function DashboardClient({
               ].map((item) => (
                 <div
                   key={item.label}
-                  className="rounded-xl border border-violet-500/15 bg-background/55 px-2.5 py-2 text-center backdrop-blur-[2px] dark:border-white/15 dark:bg-black/20"
+                  className="rounded-xl border border-[#b5d0c3]/60 bg-background/55 px-2.5 py-2 text-center backdrop-blur-[2px] dark:border-white/15 dark:bg-black/20"
                 >
-                  <p className="text-[10px] text-muted-foreground dark:text-violet-100/75">{item.label}</p>
+                  <p className="text-[10px] text-muted-foreground dark:text-[#d2e9df]/85">{item.label}</p>
                   <p className="mt-0.5 text-[11px] font-bold text-foreground dark:text-white">{item.value}</p>
                 </div>
               ))}
             </div>
-            {data.adelantableMxn > 0 ? (
+            {effectiveAdelantableMxn > 0 ? (
               <Link href="/adelanto" className="mt-4 block">
                 <Button className="h-12 w-full rounded-full text-base font-black">
                   Pedir adelanto
@@ -592,7 +834,7 @@ export default function DashboardClient({
                 Pedir adelanto
               </Button>
             )}
-            <p className="mt-2 text-center text-[11px] text-muted-foreground dark:text-violet-100/70">
+            <p className="mt-2 text-center text-[11px] text-muted-foreground dark:text-[#d2e9df]/80">
               Simula monto, tasa y plazo en el siguiente paso.
             </p>
           </div>
@@ -614,30 +856,6 @@ export default function DashboardClient({
             >
               Usar
             </Button>
-          </Link>
-        </section>
-      )}
-
-      {showEtherfuseRampDev && (
-        <section className="space-y-2 rounded-[1.25rem] border border-dashed border-amber-500/25 bg-amber-500/[0.06] p-4">
-          <p className="text-xs font-bold text-amber-200/90">Solo desarrollo</p>
-          <Link
-            href="/depositar"
-            className="block text-sm font-semibold text-foreground underline-offset-4 hover:underline"
-          >
-            Probar depósito (sandbox)
-          </Link>
-          <Link
-            href="/retirar"
-            className="block text-sm font-semibold text-foreground underline-offset-4 hover:underline"
-          >
-            Probar retiro (sandbox)
-          </Link>
-          <Link
-            href="/dev/poc-omnibus"
-            className="block text-sm font-semibold text-foreground underline-offset-4 hover:underline"
-          >
-            Wallet de prueba
           </Link>
         </section>
       )}

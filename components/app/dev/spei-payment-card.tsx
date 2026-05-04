@@ -77,18 +77,18 @@ export function SpeiPaymentCard({
       className="overflow-hidden rounded-[1.5rem] border border-border bg-card"
       aria-label="Datos para transferencia SPEI"
     >
-      <div className="border-b border-border bg-secondary/40 px-4 py-3">
-        <h2 className="text-sm font-bold text-foreground">Transferencia SPEI</h2>
-        <p className="mt-0.5 text-xs text-muted-foreground">Desde la app de tu banco</p>
+      <div className="border-b border-border bg-[#e8f3ed]/80 px-4 py-3 dark:bg-secondary/40">
+        <h2 className="text-base font-bold text-foreground">Deposita por transferencia</h2>
+        <p className="mt-0.5 text-xs text-muted-foreground">Transferencia SPEI con tu CLABE interbancaria</p>
       </div>
 
-      <div className="px-4 py-3">
+      <div className="px-4 py-4">
         {details ? (
           <>
-            <p className="mb-2 text-xs text-muted-foreground">
-              Producto · <span className="font-semibold text-foreground">{details.assetCode}</span>
+            <p className="mb-3 text-xs text-muted-foreground">
+              Copia los datos en tu app del banco. El monto debe coincidir exactamente.
             </p>
-            <div className="rounded-xl border border-dashed border-border bg-background/60 px-3">
+            <div className="rounded-xl border border-[#c6dccf]/80 bg-[#f4faf7]/90 px-3 dark:border-border dark:bg-background/60">
               <FieldRow label="CLABE" value={details.clabe} mono copyValue={details.clabe} />
               <FieldRow label="Beneficiario" value={details.beneficiaryName} />
               <FieldRow
@@ -101,13 +101,13 @@ export function SpeiPaymentCard({
               ) : null}
             </div>
             <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-              El monto debe coincidir al centavo. Luego confirma abajo cuando hayas pagado.
+              Cuando termines la transferencia, confirma abajo para seguir el estado de tu depósito.
             </p>
           </>
         ) : (
           <p className="text-sm leading-relaxed text-muted-foreground">
-            Escribe el monto y pulsa <span className="font-medium text-foreground">Continuar</span>. Aquí verás la
-            CLABE y el importe exacto.
+            Indica el monto que vas a enviar y usa el botón <span className="font-semibold text-foreground">Ver datos para transferir</span>.
+            Aquí aparecerán la CLABE, el beneficiario y el importe exacto (como en tu banca tradicional).
           </p>
         )}
       </div>

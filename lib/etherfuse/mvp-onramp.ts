@@ -46,12 +46,13 @@ function depositFromCreateOrderResponse(data: unknown): {
       : typeof o.deposit_clabe === "string"
         ? o.deposit_clabe
         : "";
-  const amt =
-    typeof o.depositAmount === "number"
+  const rawAmt =
+    typeof o.depositAmount === "number" || typeof o.depositAmount === "string"
       ? o.depositAmount
-      : typeof o.deposit_amount === "number"
+      : typeof o.deposit_amount === "number" || typeof o.deposit_amount === "string"
         ? o.deposit_amount
         : NaN;
+  const amt = typeof rawAmt === "string" ? Number.parseFloat(rawAmt) : rawAmt;
   if (!orderId || !clabe || !Number.isFinite(amt)) return null;
   return { orderId, clabe, depositAmount: amt };
 }
@@ -165,13 +166,18 @@ export async function executeMvpPartnerOnramp(params: {
     orderJson = await createMxOnrampOrder({
       bankAccountId: identity.bankAccountId,
       quoteId,
-      ...(cryptoWalletId
+      publicKey: identity.publicKey,
+      ...(process.env.SEYF_PREFER_CRYPTO_WALLET_ID === "true" && cryptoWalletId
         ? { cryptoWalletId }
-        : { publicKey: identity.publicKey }),
+        : {}),
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "";
-    if (msg.includes("(409)")) {
+    const lm = msg.toLowerCase();
+    if (
+      msg.includes("(409)") ||
+      lm.includes("pending onramp order already exists")
+    ) {
       const orders = await fetchOrdersFirstPage();
       const pendingId = findPendingOnrampOrderForAmount(
         orders,

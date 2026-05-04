@@ -3,9 +3,11 @@ import {
   BASE_FEE,
   Horizon,
   Networks,
+  Operation,
   TransactionBuilder,
 } from '@stellar/stellar-sdk'
 
+/** Emisor CETES testnet por defecto (mismo que documentación Etherfuse / sandbox). */
 const CETES_ISSUER_TESTNET = 'GC3CW7EDYRTWQ635VDIGY6S4ZUF5L6TQ7AA4MWS7LEQDBLUSZXV7UPS4'
 
 type StellarNetwork = 'testnet' | 'mainnet' | 'public'
@@ -52,7 +54,7 @@ export async function buildCetesTrustlineXdr(publicKey: string): Promise<string>
     networkPassphrase: passphrase,
   })
     .addOperation(
-      TransactionBuilder.Operation.changeTrust({
+      Operation.changeTrust({
         asset: getCetesAsset(),
       }),
     )
@@ -72,12 +74,14 @@ export async function hasCetesTrustline(publicKey: string): Promise<boolean> {
   try {
     const account = await server.loadAccount(publicKey)
     const cetes = getCetesAsset()
+    const wantIssuer = cetes.getIssuer().toUpperCase()
+    const wantCode = cetes.getCode().toUpperCase()
     return account.balances.some(
       (b) =>
         'asset_code' in b &&
         'asset_issuer' in b &&
-        b.asset_code === cetes.getCode() &&
-        b.asset_issuer === cetes.getIssuer(),
+        String(b.asset_code).toUpperCase() === wantCode &&
+        String(b.asset_issuer).toUpperCase() === wantIssuer,
     )
   } catch {
     return false

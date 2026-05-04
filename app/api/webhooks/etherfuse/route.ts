@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { EtherfuseKycStatus } from "@/lib/etherfuse/kyc";
-import { getEtherfuseConfig } from "@/lib/etherfuse/config";
+import { getEtherfuseConfig, strictEtherfuseProductionConfig } from "@/lib/etherfuse/config";
 import { verifyEtherfuseWebhookSignature } from "@/lib/etherfuse/webhook-verify";
 import { upsertStoredKycSnapshot } from "@/lib/seyf/kyc-state-store";
 import { toErrorResponse } from "@/lib/seyf/api-error";
@@ -85,7 +85,7 @@ export async function POST(req: Request) {
       if (!verifyEtherfuseWebhookSignature(payload, sig, secret)) {
         return NextResponse.json({ error: "Firma inválida" }, { status: 401 });
       }
-    } else if (process.env.NODE_ENV === "production") {
+    } else if (strictEtherfuseProductionConfig()) {
       return NextResponse.json(
         { error: "ETHERFUSE_WEBHOOK_SECRET no configurado" },
         { status: 503 },

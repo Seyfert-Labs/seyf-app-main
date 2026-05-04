@@ -59,7 +59,7 @@ function FieldRow({
 }
 
 /**
- * Siguiente paso offramp: firma (statusPage / burn / anchor). Sin orden muestra guía breve.
+ * Paso siguiente del retiro: enlace seguro (statusPage), firma/burn o memo anchor.
  */
 export function OfframpActionCard({ summary }: { summary: OfframpOrderSummary | null }) {
   const hasOrder = Boolean(summary?.orderId)
@@ -73,20 +73,27 @@ export function OfframpActionCard({ summary }: { summary: OfframpOrderSummary | 
       className="overflow-hidden rounded-[1.5rem] border border-border bg-card"
       aria-label="Autorizar retiro"
     >
-      <div className="border-b border-border bg-secondary/40 px-4 py-3">
-        <h2 className="text-sm font-bold text-foreground">Siguiente paso</h2>
-        <p className="mt-0.5 text-xs text-muted-foreground">Autoriza tu retiro en pesos</p>
+      <div className="border-b border-border bg-[#e8f3ed]/80 px-4 py-3 dark:bg-secondary/40">
+        <h2 className="text-base font-bold text-foreground">
+          {hasOrder ? 'Autoriza tu retiro' : 'Retiro a tu cuenta bancaria'}
+        </h2>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          {hasOrder
+            ? 'Abre el enlace seguro de Etherfuse y sigue los pasos (como confirmar una transferencia en tu banco).'
+            : 'Primero indicas cuánto retirar; luego te damos un enlace para firmar o autorizar la operación.'}
+        </p>
       </div>
 
-      <div className="px-4 py-3">
+      <div className="px-4 py-4">
         {!hasOrder ? (
           <p className="text-sm leading-relaxed text-muted-foreground">
-            Indica el monto y pulsa <span className="font-medium text-foreground">Continuar</span>. Te daremos un
-            enlace seguro para autorizar el retiro.
+            Escribe la cantidad del activo que quieres vender y pulsa{' '}
+            <span className="font-semibold text-foreground">Continuar con el retiro</span>. Después verás aquí el
+            enlace y los datos que necesites copiar.
           </p>
         ) : (
           <>
-            <div className="rounded-xl border border-dashed border-border bg-background/60 px-3">
+            <div className="rounded-xl border border-[#c6dccf]/80 bg-[#f4faf7]/90 px-3 dark:border-border dark:bg-background/60">
               <FieldRow
                 label="Orden"
                 value={summary!.orderId!}
@@ -99,9 +106,9 @@ export function OfframpActionCard({ summary }: { summary: OfframpOrderSummary | 
                     href={summary!.statusPage}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-violet-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-violet-700"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-foreground px-4 py-3 text-sm font-bold text-background transition-colors hover:bg-foreground/90"
                   >
-                    Abrir para autorizar
+                    Abrir enlace seguro
                     <ExternalLink className="size-4 opacity-90" aria-hidden />
                   </a>
                 </div>
@@ -135,15 +142,9 @@ export function OfframpActionCard({ summary }: { summary: OfframpOrderSummary | 
               ) : null}
             </div>
             <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-              Al terminar, pulsa <span className="font-medium text-foreground">Consultar estado</span> abajo.{' '}
-              <a
-                href="https://docs.etherfuse.com/guides/testing-offramps"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-violet-600 underline underline-offset-2 hover:text-violet-500"
-              >
-                Ayuda
-              </a>
+              Cuando termines en esa pantalla, vuelve aquí y pulsa{' '}
+              <span className="font-semibold text-foreground">Actualizar estado del retiro</span> para ver si el
+              dinero ya va en camino a tu CLABE.
             </p>
           </>
         )}
