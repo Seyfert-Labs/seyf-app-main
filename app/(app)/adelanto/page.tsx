@@ -49,28 +49,11 @@ export default function AdelantoPage() {
     advance_available: boolean
     error?: string
   } | null>(null)
-  const [advances, setAdvances] = useState<
-    Array<{
-      id: string
-      status: 'pending' | 'completed' | 'failed' | 'liquidated'
-      amount_mxn: number
-      fee_mxn: number
-      net_mxn: number
-      years: number
-      rate_percent: number
-      due_at: string
-      created_at: string
-      liquidated_at: string | null
-      liquidation_fee_mxn: number | null
-      time_left_label: string
-      can_liquidate: boolean
-    }>
-  >([])
+  const [advances, setAdvances] = useState<Array<{ id: string }>>([])
   const [years, setYears] = useState(1)
   const [initialLoading, setInitialLoading] = useState(true)
   const [simLoading, setSimLoading] = useState(false)
   const [confirming, setConfirming] = useState(false)
-  const [liquidatingId, setLiquidatingId] = useState<string | null>(null)
   const [exito, setExito] = useState(false)
   const [txHash, setTxHash] = useState<string | null>(null)
   const [uiError, setUiError] = useState<string | null>(null)
@@ -172,28 +155,6 @@ export default function AdelantoPage() {
     }
   }
 
-  const handleLiquidar = async (advanceId: string) => {
-    setLiquidatingId(advanceId)
-    setUiError(null)
-    try {
-      const res = await fetch('/api/seyf/advance/liquidate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ advance_id: advanceId }),
-      })
-      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; message_es?: string }
-      if (!res.ok || !data.ok) {
-        setUiError(data.message_es || data.error || `No pudimos liquidar (HTTP ${res.status}).`)
-        return
-      }
-      await Promise.all([refreshAdvanceList(), fetch(`/api/seyf/advance/simulate?years=${years}`).then((r) => r.json()).then(setSimulation)])
-    } catch {
-      setUiError('Error de conexión al liquidar adelanto.')
-    } finally {
-      setLiquidatingId(null)
-    }
-  }
-
   if (initialLoading) {
     return (
       <AppPageBody className="flex items-center justify-center pt-20">
@@ -220,10 +181,10 @@ export default function AdelantoPage() {
       <AppPageBody className="space-y-6 pt-2">
         <AppBackLink href="/dashboard" />
 
-        <section className="relative overflow-hidden rounded-[1.5rem] border border-emerald-400/30 bg-gradient-to-br from-emerald-800/35 via-teal-900/25 to-card p-5">
-          <div className="pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full bg-emerald-400/20 blur-3xl" />
+        <section className="relative overflow-hidden rounded-[1.5rem] border border-[#bfd6ca] bg-gradient-to-br from-[#edf6f2] via-[#e6f0ea] to-[#dce9e3] p-5 dark:border-[#2b4a43] dark:bg-gradient-to-br dark:from-[#0d3531] dark:via-[#15534a] dark:to-[#1f6559]">
+          <div className="pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full bg-[#9ec7b3]/25 blur-3xl dark:bg-[#6ba690]/25" />
           <div className="relative flex flex-col items-center text-center">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/25 ring-1 ring-emerald-400/40">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#9ec7b3]/35 dark:bg-[#6ba690]/30">
               <svg
                 width="28"
                 height="28"
@@ -233,27 +194,29 @@ export default function AdelantoPage() {
                 strokeWidth="2.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="text-emerald-300"
+                className="text-[#2e7d69] dark:text-[#d2e9df]"
               >
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             </div>
-            <p className="inline-flex rounded-full border border-white/15 bg-black/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-100/90">
+            <p className="inline-flex rounded-full bg-white/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#5f7168] dark:bg-white/15 dark:text-[#d2e9df]">
               Adelanto activado
             </p>
-            <h2 className="mt-2 text-2xl font-black tracking-tight text-white">Listo</h2>
-            <p className="mt-2 text-sm text-emerald-100/85">Tu adelanto está disponible para gastar.</p>
+            <h2 className="mt-2 text-2xl font-black tracking-tight text-[#41534b] dark:text-white">Listo</h2>
+            <p className="mt-2 text-sm text-[#5f7168] dark:text-[#d2e9df]">
+              Tu adelanto se acreditó correctamente.
+            </p>
           </div>
         </section>
 
-        <div className="space-y-3 rounded-[1.5rem] border border-border bg-card p-5 shadow-[0_8px_28px_rgba(0,0,0,0.14)]">
+        <div className="space-y-3 rounded-[1.5rem] bg-card p-5 shadow-[0_8px_28px_rgba(0,0,0,0.14)]">
           <SummaryRow label="Adelanto recibido" value={formatMXN(simulation?.net_to_user_mxn || 0)} bold />
-          <div className="border-t border-border pt-3">
+          <div className="border-t border-border/60 pt-3">
             <SummaryRow label="Referencia de operación" value={txHash?.slice(0, 8) + '...' + txHash?.slice(-8)} dim />
           </div>
         </div>
 
-        <Link href="/gastar" className="block">
+        <Link href="/tarjeta" className="block">
           <Button className="h-12 w-full rounded-full bg-foreground text-base font-bold text-background shadow-[0_10px_28px_rgba(255,255,255,0.12)] hover:bg-foreground/90">
             Usar mi adelanto
           </Button>
@@ -293,7 +256,7 @@ export default function AdelantoPage() {
         </div>
       </section>
 
-      <section className="space-y-4 rounded-[1.5rem] border border-border bg-card p-6 shadow-[0_8px_28px_rgba(0,0,0,0.14)]">
+      <section className="space-y-4 rounded-[1.5rem] bg-card p-6 shadow-[0_8px_28px_rgba(0,0,0,0.14)]">
         <div className="grid gap-3 sm:grid-cols-2">
           <MiniStat
             label="Capital base (MXN)"
@@ -311,7 +274,7 @@ export default function AdelantoPage() {
             value={`${(simulation?.advance_rate_percent ?? 0).toFixed(2)}%`}
           />
         </div>
-        <div className="rounded-xl border border-border bg-secondary/40 px-3 py-3">
+        <div className="rounded-xl bg-secondary/40 px-3 py-3">
           <p className="text-[11px] text-muted-foreground">
             Años de rendimiento a adelantar (máx. por tope 90%: {simulation?.years_max_allowed ?? 1})
           </p>
@@ -324,7 +287,7 @@ export default function AdelantoPage() {
             onChange={(e) => setYears(Number.parseInt(e.target.value, 10) || 1)}
             className="mt-2 w-full"
           />
-          <p className="mt-1 text-sm font-bold text-foreground">
+          <p className="mt-2 text-center text-sm font-bold text-foreground">
             {years} año(s){simLoading ? ' · actualizando...' : ''}
           </p>
         </div>
@@ -384,37 +347,18 @@ export default function AdelantoPage() {
         {confirming ? 'Confirmando operación…' : `Confirmar adelanto (${years} año${years === 1 ? '' : 's'})`}
       </Button>
 
-      <section className="space-y-3 rounded-[1.5rem] border border-border bg-card p-5">
-        <h2 className="text-base font-bold text-foreground">Tus adelantos</h2>
-        {advances.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aún no tienes adelantos registrados.</p>
-        ) : (
-          <div className="space-y-2">
-            {advances.map((item) => (
-              <div key={item.id} className="rounded-xl border border-border bg-secondary/30 p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-foreground">{formatMXN(item.amount_mxn)}</p>
-                  <p className="text-xs text-muted-foreground capitalize">{item.status.replace('_', ' ')}</p>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Plazo: {item.years} año(s) · Tasa: {item.rate_percent.toFixed(2)}% · Tiempo restante: {item.time_left_label}
-                </p>
-                {item.can_liquidate ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="mt-2 rounded-full"
-                    disabled={liquidatingId === item.id}
-                    onClick={() => void handleLiquidar(item.id)}
-                  >
-                    {liquidatingId === item.id ? 'Liquidando...' : 'Liquidar adelanto'}
-                  </Button>
-                ) : null}
-              </div>
-            ))}
+      <section className="rounded-[1.5rem] bg-card p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-bold text-foreground">Tus adelantos</h2>
+            <p className="text-xs text-muted-foreground">
+              {advances.length > 0 ? `${advances.length} registro(s)` : 'Sin registros aún'}
+            </p>
           </div>
-        )}
+          <Button asChild variant="outline" className="rounded-full">
+            <Link href="/adelantos">Ver detalle completo</Link>
+          </Button>
+        </div>
       </section>
 
       <p className="text-center text-[10px] text-muted-foreground">
