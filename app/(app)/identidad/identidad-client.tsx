@@ -454,6 +454,20 @@ export default function IdentidadClient({
         return
       }
 
+      const countryRaw = String(fd.get('country') ?? 'MX').trim().toUpperCase()
+      const countryCode = countryRaw.slice(0, 2) || 'MX'
+
+      // Only include idNumbers entries that have a non-empty value
+      const rawIdNumbers = [
+        curpValue ? { type: 'mx_curp', value: curpValue } : null,
+        rfcValue ? { type: 'mx_rfc', value: rfcValue } : null,
+      ].filter(Boolean) as Array<{ type: string; value: string }>
+
+      if (rawIdNumbers.length === 0) {
+        setError('Por favor captura tu CURP y RFC para continuar.')
+        return
+      }
+
       const payload = {
         publicKey: connectedPublicKey,
         identity: {
@@ -470,18 +484,9 @@ export default function IdentidadClient({
             city: String(fd.get('city') ?? ''),
             region: String(fd.get('region') ?? ''),
             postalCode: String(fd.get('postalCode') ?? ''),
-            country: String(fd.get('country') ?? ''),
+            country: countryCode,
           },
-          idNumbers: [
-            {
-              type: 'mx_curp',
-              value: curpValue,
-            },
-            {
-              type: 'mx_rfc',
-              value: rfcValue,
-            },
-          ],
+          idNumbers: rawIdNumbers,
         },
       }
       const http = await fetch('/api/seyf/kyc/submit', {
@@ -1067,8 +1072,9 @@ export default function IdentidadClient({
           />
           <Input
             name="phoneNumber"
-            placeholder="Teléfono (+52...)"
+            placeholder="Teléfono (+521234567890)"
             required
+            minLength={7}
             className="h-12 rounded-xl"
             disabled={!canSubmitForm}
           />
@@ -1100,6 +1106,7 @@ export default function IdentidadClient({
             placeholder="País ISO-2 (MX)"
             defaultValue="MX"
             required
+            maxLength={2}
             className="h-12 rounded-xl uppercase"
             disabled={!canSubmitForm}
           />

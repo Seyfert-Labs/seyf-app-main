@@ -32,9 +32,9 @@ const bodySchema = z.object({
   publicKey: z.string().trim().min(1),
   identity: z.object({
     id: z.preprocess(emptyToUndefined, z.string().trim().min(1).optional()),
-    email: z.preprocess(emptyToUndefined, z.string().trim().email().optional()),
-    phoneNumber: z.preprocess(emptyToUndefined, z.string().trim().min(5).optional()),
-    occupation: z.preprocess(emptyToUndefined, z.string().trim().min(2).optional()),
+    email: z.preprocess(emptyToUndefined, z.string().trim().min(1).optional()),
+    phoneNumber: z.preprocess(emptyToUndefined, z.string().trim().min(1).optional()),
+    occupation: z.preprocess(emptyToUndefined, z.string().trim().min(1).optional()),
     name: z.object({
       givenName: z.string().trim().min(1),
       familyName: z.string().trim().min(1),
@@ -51,7 +51,8 @@ const bodySchema = z.object({
       city: z.string().trim().min(1),
       region: z.string().trim().min(1),
       postalCode: z.string().trim().min(1),
-      country: z.string().trim().length(2),
+      // accept up to 3 chars and slice to 2 — prevents length(2) failure if user typed extra chars
+      country: z.string().trim().min(2).transform((s) => s.slice(0, 2).toUpperCase()),
     }),
     idNumbers: z
       .array(
@@ -61,7 +62,9 @@ const bodySchema = z.object({
           value: z.string().trim().min(1),
         }),
       )
-      .min(1),
+      // filter out entries with empty value before validating min(1) array length
+      .transform((arr) => arr.filter((x) => x.value.trim().length > 0))
+      .pipe(z.array(z.object({ id: z.string().optional(), type: z.string(), value: z.string() })).min(1)),
   }),
 })
 
@@ -204,17 +207,16 @@ export async function POST(req: Request) {
       },
     )
   } catch (e) {
-    if (process.env.NODE_ENV !== 'production' && e instanceof Error) {
-      const base = toErrorResponse(e, 'kyc/submit')
-      const body = (await base.json()) as { error?: unknown }
-      return NextResponse.json(
-        {
-          ...(typeof body === 'object' && body ? body : {}),
-          debug_message: e.message,
-        },
-        { status: base.status, headers: { 'Cache-Control': 'no-store' } },
-      )
-    }
-    return toErrorResponse(e, 'kyc/submit')
+    const base = toErrorResponse(e, 'kyc/submit')
+    // Always include debug_message so Vercel logs + client console show the exact failure
+    const body = (await base.json()) as { error?: unknown }
+    const debugMsg = e instanceof Error ? e.message : String(e)
+    return NextResponse.json(
+      {
+        ...(typeof body === 'object' && body ? body : {}),
+        debug_message: debugMsg,
+      },
+      { status: base.status, headers: { 'Cache-Control': 'no-store' } },
+    )
   }
 }
