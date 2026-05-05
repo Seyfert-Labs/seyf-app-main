@@ -110,8 +110,13 @@ export async function findRampContextByWalletPublicKey(
 }
 
 /**
- * Resolución alternativa: `GET /ramp/wallets` a nivel org suele incluir `customerId` por fila.
- * Útil cuando el paseo por `/ramp/customers` no encuentra la wallet (paginación / timing).
+ * Quick org-level check + customer-level resolution.
+ *
+ * `GET /ramp/wallets` returns the **org ID** as `customerId` for every row,
+ * which is NOT a valid customer ID for quote/order/KYC calls. So after
+ * confirming the wallet exists at org level (fast, single call), we delegate
+ * to {@link findRampContextByWalletPublicKey} which iterates through actual
+ * customers to find the real `customerId` that owns this wallet.
  */
 export async function findRampContextFromOrgWallets(
   publicKey: string,
@@ -122,6 +127,7 @@ export async function findRampContextFromOrgWallets(
   if (!res.ok) return null;
 
   const target = normalizeStellarPublicKey(publicKey);
+  let walletExists = false;
   for (const row of json?.items ?? []) {
     const pk =
       typeof row.publicKey === "string"
@@ -138,34 +144,13 @@ export async function findRampContextFromOrgWallets(
           : "",
     ).toLowerCase();
     if (bc && bc !== "stellar") continue;
-    if (!sameWalletKey(pk, target)) continue;
-
-    const customerId =
-      typeof row.customerId === "string"
-        ? row.customerId
-        : typeof row.customer_id === "string"
-          ? row.customer_id
-          : null;
-    if (!customerId) continue;
-
-    const fromRow =
-      typeof row.bankAccountId === "string"
-        ? row.bankAccountId
-        : typeof row.bank_account_id === "string"
-          ? row.bank_account_id
-          : null;
-    if (fromRow && fromRow.length > 0) {
-      return { customerId, bankAccountId: fromRow };
-    }
-
-    const fallback = z
-      .string()
-      .uuid()
-      .safeParse(opts?.fallbackBankAccountId?.trim());
-    if (fallback.success) {
-      return { customerId, bankAccountId: fallback.data };
+    if (sameWalletKey(pk, target)) {
+      walletExists = true;
+      break;
     }
   }
 
-  return null;
+  if (!walletExists) return null;
+
+  return findRampContextByWalletPublicKey(publicKey, opts);
 }

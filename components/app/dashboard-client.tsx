@@ -198,7 +198,11 @@ export default function DashboardClient({
 
   useEffect(() => {
     if (activeCycle) return
-    void fetch('/api/seyf/etherfuse/bonus/welcome', { cache: 'no-store' })
+    const addr = wallet?.stellarAddress?.trim() ?? ''
+    const bonusUrl = addr
+      ? `/api/seyf/etherfuse/bonus/welcome?wallet=${encodeURIComponent(addr)}`
+      : '/api/seyf/etherfuse/bonus/welcome'
+    void fetch(bonusUrl, { cache: 'no-store' })
       .then(async (r) => {
         const j = (await r.json().catch(() => ({}))) as {
           claimed?: boolean
@@ -217,7 +221,7 @@ export default function DashboardClient({
       .catch(() => {
         // noop
       })
-  }, [activeCycle])
+  }, [activeCycle, wallet?.stellarAddress])
 
   useEffect(() => {
     try {
@@ -234,9 +238,11 @@ export default function DashboardClient({
     setWelcomeBonusBusy(true)
     setWelcomeBonusMessage(null)
     try {
+      const addr = wallet?.stellarAddress?.trim() ?? ''
       const r = await fetch('/api/seyf/etherfuse/bonus/welcome', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wallet: addr }),
       })
       const j = (await r.json().catch(() => ({}))) as {
         ok?: boolean

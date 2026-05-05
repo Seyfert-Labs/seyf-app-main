@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { AppError, toErrorResponse } from '@/lib/seyf/api-error'
 import { guardEtherfuseRampRoutes } from '@/lib/seyf/etherfuse-ramp-guard'
-import { getEtherfuseRampContext } from '@/lib/seyf/etherfuse-ramp-context'
+import { resolveEtherfuseRampContext } from '@/lib/seyf/etherfuse-ramp-context'
 import { isPublicStellarTestnet } from '@/lib/seyf/stellar-wallet-network'
 import { getWelcomeBonusClaimByCustomerId, upsertWelcomeBonusClaim } from '@/lib/seyf/welcome-bonus-store'
 import { assertEtherfuseKycApproved } from '@/lib/seyf/etherfuse-kyc-guard'
@@ -88,12 +88,13 @@ async function ensureAgreementsForWallet(ctx: {
   })
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const denied = guardEtherfuseRampRoutes()
   if (denied) return denied
   try {
     ensureTestnet()
-    const ctx = await getEtherfuseRampContext()
+    const walletHint = new URL(request.url).searchParams.get('wallet') ?? null
+    const ctx = await resolveEtherfuseRampContext({ walletPublicKeyHint: walletHint })
     if (!ctx) {
       return NextResponse.json({ ok: true, hasContext: false, claimed: false }, { headers: { 'Cache-Control': 'no-store' } })
     }
@@ -112,12 +113,21 @@ export async function GET() {
   }
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   const denied = guardEtherfuseRampRoutes()
   if (denied) return denied
   try {
     ensureTestnet()
-    const ctx = await getEtherfuseRampContext()
+
+    let walletHint: string | null = null
+    try {
+      const body = await request.json() as Record<string, unknown>
+      if (typeof body.wallet === 'string') walletHint = body.wallet
+    } catch { /* empty body is fine */ }
+
+    const ctx = await resolveEtherfuseRampContext({
+      walletPublicKeyHint: walletHint,
+    })
     if (!ctx) {
       throw new AppError('validation_error', {
         statusCode: 401,
