@@ -1,4 +1,4 @@
-import { findRampContextFromOrgWallets } from "@/lib/etherfuse/customer-lookup";
+import { findRampContextFromOrgWallets, findRampContextByWalletPublicKey } from "@/lib/etherfuse/customer-lookup";
 import { getEtherfuseOnboardingSession } from "@/lib/etherfuse/onboarding-session";
 import { getStoredOnboardingSession, saveStoredOnboardingSession } from "@/lib/seyf/onboarding-session-store";
 import { resolveMvpPartnerRampIdentity } from "@/lib/etherfuse/partner-accounts";
@@ -106,12 +106,16 @@ export async function resolveEtherfuseRampContext(options?: {
     };
   }
 
-  // 3. Etherfuse org wallet lookup — dispositivo nuevo sin Redis ni cookie
+  // 3. Etherfuse org wallet lookup — dispositivo nuevo sin Redis ni cookie.
+  // Pasa un UUID fresco como fallbackBankAccountId por si el cliente existe
+  // en Etherfuse pero todavía no tiene cuenta bancaria registrada en sandbox.
   if (hintPk) {
     try {
-      const found = await findRampContextFromOrgWallets(hintPk);
+      const freshBankAccountId = crypto.randomUUID()
+      const found = await findRampContextFromOrgWallets(hintPk, {
+        fallbackBankAccountId: freshBankAccountId,
+      });
       if (found?.customerId && found.bankAccountId) {
-        // Guardar en Redis para requests futuros
         void saveStoredOnboardingSession({
           customerId: found.customerId,
           bankAccountId: found.bankAccountId,
@@ -121,6 +125,29 @@ export async function resolveEtherfuseRampContext(options?: {
           customerId: found.customerId,
           publicKey: hintPk,
           bankAccountId: found.bankAccountId,
+          source: "wallet_lookup",
+        };
+      }
+    } catch {
+      // GET /ramp/wallets falló — intentar lookup directo por clientes
+    }
+
+    // 3b. Fallback: buscar directamente entre clientes de la org (omite la verificación de org-wallets)
+    try {
+      const freshBankAccountId = crypto.randomUUID()
+      const direct = await findRampContextByWalletPublicKey(hintPk, {
+        fallbackBankAccountId: freshBankAccountId,
+      });
+      if (direct?.customerId && direct.bankAccountId) {
+        void saveStoredOnboardingSession({
+          customerId: direct.customerId,
+          bankAccountId: direct.bankAccountId,
+          walletPublicKey: hintPk,
+        });
+        return {
+          customerId: direct.customerId,
+          publicKey: hintPk,
+          bankAccountId: direct.bankAccountId,
           source: "wallet_lookup",
         };
       }
