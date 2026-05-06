@@ -142,36 +142,42 @@ export async function POST(req: Request) {
       }
     }
     /**
-     * Si ya tenemos sesión para esta misma wallet, evitamos pegarle de nuevo a onboarding-url
-     * (llamada propensa a 502 transitorio) y usamos customerId/bankAccountId ya resueltos.
+     * Resuelve customerId/bankAccountId garantizando que existan en el org activo.
+     * Si hay sesión guardada (cookie) pero el customerId ya no existe en Etherfuse
+     * (p.ej. cambio de org/API key), se descarta y se genera contexto fresco.
      */
+    const resolveOnboardingContext = async (useStaleSession: boolean) => {
+      const baseIds = useStaleSession ? ids : newEtherfuseOnboardingIds()
+      const resolved = await generateOnboardingPresignedUrlResolving409({
+        customerId: baseIds.customerId,
+        bankAccountId: baseIds.bankAccountId,
+        publicKey,
+      })
+      await saveEtherfuseOnboardingSession({
+        customerId: resolved.customerId,
+        bankAccountId: resolved.bankAccountId,
+        publicKey,
+      })
+      return { customerId: resolved.customerId, bankAccountId: resolved.bankAccountId }
+    }
+
     let resolvedCustomerId = ids.customerId
     let resolvedBankAccountId = ids.bankAccountId
+
     if (!hasMatchingSession) {
-      // Ensure customer/bank-account context exists in Etherfuse before programmatic KYC submit.
-      let resolved: { customerId: string; bankAccountId: string; presignedUrl: string }
       try {
-        resolved = await generateOnboardingPresignedUrlResolving409({
-          customerId: ids.customerId,
-          bankAccountId: ids.bankAccountId,
-          publicKey,
-        })
+        const ctx = await resolveOnboardingContext(true)
+        resolvedCustomerId = ctx.customerId
+        resolvedBankAccountId = ctx.bankAccountId
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e)
         const mapped = mapKycProviderSetupError(msg)
         if (mapped) throw mapped
         throw e
       }
-      resolvedCustomerId = resolved.customerId
-      resolvedBankAccountId = resolved.bankAccountId
-      await saveEtherfuseOnboardingSession({
-        customerId: resolvedCustomerId,
-        bankAccountId: resolvedBankAccountId,
-        publicKey,
-      })
     }
 
-    const submission = await submitEtherfuseKycIdentityData({
+    const buildIdentityPayload = () => ({
       customerId: resolvedCustomerId,
       pubkey: publicKey,
       identity: {
@@ -196,11 +202,35 @@ export async function POST(req: Request) {
       },
     })
 
+    let submission: Awaited<ReturnType<typeof submitEtherfuseKycIdentityData>>
+    try {
+      submission = await submitEtherfuseKycIdentityData(buildIdentityPayload())
+    } catch (submitErr) {
+      const submitMsg = submitErr instanceof Error ? submitErr.message : String(submitErr)
+      // Sesión stale (org cambió) — regenerar contexto fresco e intentar de nuevo
+      if (submitMsg.toLowerCase().includes('organization not found') || submitMsg.toLowerCase().includes('customer not found')) {
+        console.warn('[kyc/submit] stale session detected, regenerating onboarding context and retrying')
+        try {
+          const freshCtx = await resolveOnboardingContext(false)
+          resolvedCustomerId = freshCtx.customerId
+          resolvedBankAccountId = freshCtx.bankAccountId
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e)
+          const mapped = mapKycProviderSetupError(msg)
+          if (mapped) throw mapped
+          throw e
+        }
+        submission = await submitEtherfuseKycIdentityData(buildIdentityPayload())
+      } else {
+        throw submitErr
+      }
+    }
+
     return NextResponse.json(
       {
         ok: true,
-        status: submission.status,
-        message: submission.message,
+        status: submission!.status,
+        message: submission!.message,
       },
       {
         headers: { 'Cache-Control': 'no-store' },
