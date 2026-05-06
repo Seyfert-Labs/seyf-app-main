@@ -109,6 +109,17 @@ function isKycStatus(s: string): s is EtherfuseKycStatus {
   );
 }
 
+/** Etherfuse puede devolver "compliant" tras submit programático — lo mapeamos a "proposed". */
+function normalizeKycStatus(s: string | undefined | null): EtherfuseKycStatus {
+  if (!s) return "proposed"
+  if (isKycStatus(s)) return s
+  if (s === "compliant") return "proposed"
+  // Cualquier otro valor desconocido rechaza silenciosamente con proposed
+  // para no romper el flujo, pero se logea para detectar cambios de API
+  console.warn(`[kyc] Etherfuse devolvió status desconocido: "${s}" — normalizado a "proposed"`)
+  return "proposed"
+}
+
 /**
  * GET /ramp/customer/{customer_id}/kyc/{pubkey}
  * @see https://docs.etherfuse.com/api-reference/kyc/get-kyc-status
@@ -202,12 +213,7 @@ export async function submitEtherfuseKycIdentityData(params: {
       `Etherfuse KYC submit respondió sin JSON (${res.status}): ${text.slice(0, 400)}`,
     );
   }
-  const statusRaw = json.status;
-  // Normalize unknown statuses (e.g. "compliant") to "proposed" — submit was accepted
-  const status: EtherfuseKycStatus =
-    typeof statusRaw === "string" && isKycStatus(statusRaw)
-      ? statusRaw
-      : "proposed";
+  const status = normalizeKycStatus(typeof json.status === "string" ? json.status : null)
   return {
     status,
     message: typeof json.message === "string" ? json.message : null,
@@ -246,11 +252,7 @@ export async function uploadEtherfuseKycDocuments(params: {
       `Etherfuse KYC documents respondió sin JSON (${res.status}): ${text.slice(0, 400)}`,
     );
   }
-  const statusRaw = json.status;
-  const status: EtherfuseKycStatus =
-    typeof statusRaw === "string" && isKycStatus(statusRaw)
-      ? statusRaw
-      : "proposed";
+  const status = normalizeKycStatus(typeof json.status === "string" ? json.status : null)
   return {
     status,
     message: typeof json.message === "string" ? json.message : null,
