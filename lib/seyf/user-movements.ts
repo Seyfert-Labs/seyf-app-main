@@ -63,7 +63,9 @@ function etherfuseRampAllowed(): boolean {
 
 function mapEstado(status: string | null): MovimientoEstado {
   const s = (status ?? "").toLowerCase();
-  if (["completed", "funded", "success"].includes(s)) return "completado";
+  // "completed"/"success" = CETES entregados a la wallet
+  if (["completed", "success"].includes(s)) return "completado";
+  // "funded" = MXN recibido pero CETES aún en proceso
   if (["failed", "canceled", "cancelled", "rejected"].includes(s)) {
     return "fallido";
   }
