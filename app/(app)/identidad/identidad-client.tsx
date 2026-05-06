@@ -981,14 +981,11 @@ export default function IdentidadClient({
       ) : null}
 
       <form onSubmit={onSubmit} className="space-y-6">
-        <div className="rounded-[1.25rem] border border-border bg-secondary p-4">
-          <p className="text-xs font-medium text-muted-foreground">Wallet Stellar</p>
-          <p className="mt-2 text-sm text-foreground">
-            {wallet?.publicKey
-              ? `Usaremos tu wallet conectada: ${wallet.publicKey.slice(0, 6)}...${wallet.publicKey.slice(-6)}`
-              : 'Conecta tu wallet para iniciar la verificacion de identidad.'}
-          </p>
-          {!wallet?.publicKey ? (
+        {!wallet?.publicKey ? (
+          <div className="rounded-[1.25rem] border border-border bg-secondary p-4">
+            <p className="text-sm text-muted-foreground">
+              Conecta tu wallet para iniciar la verificación de identidad.
+            </p>
             <Button
               type="button"
               variant="outline"
@@ -998,8 +995,8 @@ export default function IdentidadClient({
             >
               {loading ? 'Cargando wallet...' : 'Conectar wallet'}
             </Button>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
         {inReview ? (
           <div className="rounded-[1rem] border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
             Tu verificación está en revisión. Mientras tanto, no es necesario reenviar datos.
