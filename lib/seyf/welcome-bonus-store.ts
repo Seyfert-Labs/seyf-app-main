@@ -26,6 +26,15 @@ export async function getWelcomeBonusClaimByCustomerId(
   }
 }
 
+export async function clearWelcomeBonusClaimByCustomerId(customerId: string): Promise<void> {
+  try {
+    const redis = getRedis()
+    await redis.del(bonusKey(customerId))
+  } catch {
+    // ignorar
+  }
+}
+
 export async function upsertWelcomeBonusClaim(params: {
   customerId: string
   orderId: string

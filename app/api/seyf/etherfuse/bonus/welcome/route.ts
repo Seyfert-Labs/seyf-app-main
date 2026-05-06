@@ -33,6 +33,9 @@ async function autoConfirmSandboxOrder(orderId: string): Promise<{ status: strin
   let lastDetails: unknown = null
   let lastStatus: string | null = null
 
+  // Esperar 1.5s para que Etherfuse registre la orden antes de simular pago
+  await sleep(1500)
+
   for (let attempt = 0; attempt < BONUS_AUTO_CONFIRM_ATTEMPTS; attempt++) {
     const sim = await etherfuseFetch('/ramp/order/fiat_received', {
       method: 'POST',
