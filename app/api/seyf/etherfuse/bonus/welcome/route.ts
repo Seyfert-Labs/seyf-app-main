@@ -136,7 +136,7 @@ export async function POST(request: Request) {
       throw new AppError('validation_error', {
         statusCode: 401,
         retryable: false,
-        message: 'Sin contexto rampa: completa /identidad.',
+        message: 'Completa primero el proceso de identidad en /identidad para reclamar el bono.',
       })
     }
 
@@ -177,6 +177,13 @@ export async function POST(request: Request) {
       ramp = await runBonusOnramp()
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
+      if (msg.toLowerCase().includes('organization not found') || msg.toLowerCase().includes('customer not found')) {
+        throw new AppError('validation_error', {
+          statusCode: 401,
+          retryable: false,
+          message: 'Tu sesión pertenece a una organización anterior. Ve a /identidad, usa "Reiniciar verificación" en /dev y vuelve a completar el KYC.',
+        })
+      }
       if (msg.toLowerCase().includes('terms and conditions')) {
         await ensureAgreementsForWallet({
           customerId: ctx.customerId,

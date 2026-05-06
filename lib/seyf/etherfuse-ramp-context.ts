@@ -64,9 +64,15 @@ export async function resolveEtherfuseRampContext(options?: {
               source: "wallet_lookup",
             };
           }
+          // IDs match — cookie is valid, fall through to return it
+        } else {
+          // Wallet exists in Etherfuse but has no customer in the current org.
+          // The cookie is likely stale (from a previous org). Return null so the
+          // caller knows the user must re-complete /identidad in the current org.
+          return null;
         }
       } catch {
-        // Lookup failed, fall through to cookie as-is
+        // Lookup failed (network error) — fall through to cookie as-is
       }
     }
     return {
