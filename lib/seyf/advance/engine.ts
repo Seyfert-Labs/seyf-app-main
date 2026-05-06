@@ -158,11 +158,18 @@ export async function confirmAdvance(userId: string, amountMxn: number, yearsReq
     due_at: simulation.cycle_end_date ?? new Date(Date.now() + years * DAYS_PER_YEAR * 86_400_000).toISOString(),
   })
 
+  // La quote de Soroban aplica un buffer del 10% adicional; usar su max para evitar error_code 3
+  const execAmount = Math.min(amountMxn, Number(quote.max_advance_mxn))
+  if (execAmount <= 0) {
+    await updateAdvanceRecord(record.id, { status: 'failed' })
+    throw new AppError('validation_error', { message: 'Monto calculado por la quote es cero o negativo. Verifica tu saldo.' })
+  }
+
   try {
-    const result = await soroban.executeAdvance(userId, activeCycleId, amountMxn, quote)
+    const result = await soroban.executeAdvance(userId, activeCycleId, execAmount, quote)
     
     if (result.success) {
-      pocLedgerCredit(userId, amountMxn, `Adelanto de rendimiento (Ciclo ${activeCycleId})`)
+      pocLedgerCredit(userId, execAmount, `Adelanto de rendimiento (Ciclo ${activeCycleId})`)
       if (effectiveFeeMxn > 0) {
         pocLedgerDebit(userId, effectiveFeeMxn, `Comisión por adelanto`)
       }
@@ -172,7 +179,7 @@ export async function confirmAdvance(userId: string, amountMxn: number, yearsReq
         stellar_tx_hash: result.stellar_tx_hash
       })
       
-      return { ...record, status: 'completed', stellar_tx_hash: result.stellar_tx_hash }
+      return { ...record, amount_mxn: execAmount, status: 'completed', stellar_tx_hash: result.stellar_tx_hash }
     } else {
       await updateAdvanceRecord(record.id, { status: 'failed' })
       throw new Error(`Execution failed: ${result.error_code}`)

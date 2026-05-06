@@ -133,10 +133,13 @@ export async function POST(request: Request) {
       walletPublicKeyHint: walletHint,
     })
     if (!ctx) {
+      console.warn('[bonus/welcome] ctx null — walletHint:', walletHint ?? '(none)')
       throw new AppError('validation_error', {
-        statusCode: 401,
+        statusCode: 400,
         retryable: false,
-        message: 'Completa primero el proceso de identidad en /identidad para reclamar el bono.',
+        message: walletHint
+          ? 'No encontramos tu sesión de Etherfuse. Ve a /identidad y completa la verificación nuevamente.'
+          : 'Completa primero el proceso de identidad en /identidad para reclamar el bono.',
       })
     }
 

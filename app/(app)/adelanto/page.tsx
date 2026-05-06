@@ -134,11 +134,15 @@ export default function AdelantoPage() {
       const data = (await res.json().catch(() => ({}))) as {
         status?: string
         stellar_tx_hash?: string
-        error?: string
+        error?: { code?: string; message_es?: string; retryable?: boolean } | string
         message_es?: string
       }
       if (!res.ok) {
-        setUiError(data.message_es || data.error || `No pudimos procesar tu adelanto (HTTP ${res.status}).`)
+        const errMsg =
+          typeof data.error === 'object'
+            ? (data.error?.message_es ?? 'Error al procesar el adelanto.')
+            : (data.error ?? data.message_es ?? `No pudimos procesar tu adelanto (HTTP ${res.status}).`)
+        setUiError(errMsg)
         return
       }
       if (data.status === 'completed') {
@@ -146,7 +150,11 @@ export default function AdelantoPage() {
         setExito(true)
         await refreshAdvanceList()
       } else {
-        setUiError(data.error || 'No pudimos procesar tu adelanto.')
+        const errMsg =
+          typeof data.error === 'object'
+            ? (data.error?.message_es ?? 'No pudimos procesar tu adelanto.')
+            : (data.error ?? 'No pudimos procesar tu adelanto.')
+        setUiError(errMsg)
       }
     } catch {
       setUiError('Error de conexión. Intenta nuevamente.')

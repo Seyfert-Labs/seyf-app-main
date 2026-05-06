@@ -1,6 +1,6 @@
 import { findRampContextFromOrgWallets } from "@/lib/etherfuse/customer-lookup";
 import { getEtherfuseOnboardingSession } from "@/lib/etherfuse/onboarding-session";
-import { getStoredOnboardingSession } from "@/lib/seyf/onboarding-session-store";
+import { getStoredOnboardingSession, saveStoredOnboardingSession } from "@/lib/seyf/onboarding-session-store";
 import { resolveMvpPartnerRampIdentity } from "@/lib/etherfuse/partner-accounts";
 import {
   isValidStellarPublicKey,
@@ -62,11 +62,21 @@ export async function resolveEtherfuseRampContext(options?: {
   // 2. Cookie httpOnly — fallback si Redis no tiene datos (primera sesión, Redis vacío)
   const session = await getEtherfuseOnboardingSession();
   if (session) {
-    if (hintPk && normalizeStellarPublicKey(session.publicKey) === hintPk) {
+    const sessionPk = normalizeStellarPublicKey(session.publicKey);
+
+    if (hintPk && sessionPk === hintPk) {
       // Verificar si el Etherfuse API conoce un customerId diferente (cookie stale)
       try {
-        const found = await findRampContextFromOrgWallets(hintPk);
+        const found = await findRampContextFromOrgWallets(hintPk, {
+          fallbackBankAccountId: session.bankAccountId,
+        });
         if (found?.customerId && found.bankAccountId && found.customerId !== session.customerId) {
+          // Cookie stale — guardar en Redis con los IDs correctos
+          void saveStoredOnboardingSession({
+            customerId: found.customerId,
+            bankAccountId: found.bankAccountId,
+            walletPublicKey: hintPk,
+          });
           return {
             customerId: found.customerId,
             publicKey: hintPk,
@@ -78,6 +88,16 @@ export async function resolveEtherfuseRampContext(options?: {
         // network error — usar cookie como está
       }
     }
+
+    // Seed Redis con la cookie válida para requests futuros (sin Redis)
+    if (hintPk && sessionPk === hintPk) {
+      void saveStoredOnboardingSession({
+        customerId: session.customerId,
+        bankAccountId: session.bankAccountId,
+        walletPublicKey: hintPk,
+      });
+    }
+
     return {
       customerId: session.customerId,
       publicKey: session.publicKey,
@@ -91,6 +111,12 @@ export async function resolveEtherfuseRampContext(options?: {
     try {
       const found = await findRampContextFromOrgWallets(hintPk);
       if (found?.customerId && found.bankAccountId) {
+        // Guardar en Redis para requests futuros
+        void saveStoredOnboardingSession({
+          customerId: found.customerId,
+          bankAccountId: found.bankAccountId,
+          walletPublicKey: hintPk,
+        });
         return {
           customerId: found.customerId,
           publicKey: hintPk,
