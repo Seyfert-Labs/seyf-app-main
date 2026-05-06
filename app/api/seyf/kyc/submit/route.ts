@@ -19,6 +19,11 @@ import {
 import { AppError, toErrorResponse } from '@/lib/seyf/api-error'
 import { rateLimitResponse } from '@/lib/seyf/redis-guards'
 import { normalizeDateOfBirthToIso } from '@/lib/seyf/normalize-date-of-birth'
+import {
+  isEtherfuseTestnetBankAutofillActive,
+  getTestnetSyntheticClabe,
+} from '@/lib/seyf/etherfuse-testnet-bank-autofill'
+import { createCustomerBankAccount } from '@/lib/etherfuse/bank-accounts'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -227,11 +232,70 @@ export async function POST(req: Request) {
       }
     }
 
+    // Testnet: crear cuenta bancaria automáticamente con CLABE sintética
+    // Se hace server-side para garantizar que el bankAccountId quede registrado en Etherfuse
+    let bankAccountId = resolvedBankAccountId
+    if (isEtherfuseTestnetBankAutofillActive()) {
+      try {
+        const clabe = getTestnetSyntheticClabe()
+        const identity = parsed.data.identity
+        const nameParts = identity.name.familyName.trim().split(/\s+/)
+        const firstName = identity.name.givenName.trim()
+        const paternalLastName = nameParts[0] ?? firstName
+        const maternalLastName = nameParts[1] ?? nameParts[0] ?? 'X'
+        const curpEntry = identity.idNumbers.find((n) => n.type === 'mx_curp')
+        const rfcEntry = identity.idNumbers.find((n) => n.type === 'mx_rfc')
+        // dateOfBirth ya transformado a YYYY-MM-DD, convertir a YYYYMMDD
+        const birthDate = identity.dateOfBirth.replace(/-/g, '')
+
+        if (curpEntry?.value && rfcEntry?.value && /^\d{8}$/.test(birthDate)) {
+          const bankAccount = await createCustomerBankAccount(resolvedCustomerId, {
+            bankAccountId: resolvedBankAccountId,
+            registration: {
+              kind: 'personal',
+              account: {
+                firstName,
+                paternalLastName,
+                maternalLastName,
+                birthDate,
+                birthCountryIsoCode: 'MX',
+                curp: curpEntry.value.trim().toUpperCase(),
+                rfc: rfcEntry.value.trim().toUpperCase(),
+                clabe,
+              },
+            },
+            label: 'seyf-testnet-synthetic',
+          })
+          bankAccountId = bankAccount.bankAccountId
+          // Actualizar sesión con el bankAccountId real registrado en Etherfuse
+          await saveEtherfuseOnboardingSession({
+            customerId: resolvedCustomerId,
+            bankAccountId,
+            publicKey,
+          })
+          console.info('[kyc/submit] cuenta bancaria testnet creada:', bankAccountId)
+        }
+      } catch (bankErr) {
+        const bankMsg = bankErr instanceof Error ? bankErr.message : String(bankErr)
+        // Si ya existe (409 / "already") continuar con el bankAccountId que teníamos
+        if (
+          bankMsg.toLowerCase().includes('already') ||
+          bankMsg.includes('409') ||
+          bankMsg.toLowerCase().includes('duplicate')
+        ) {
+          console.info('[kyc/submit] cuenta bancaria testnet ya existe, reutilizando:', resolvedBankAccountId)
+        } else {
+          console.warn('[kyc/submit] no se pudo crear cuenta bancaria testnet:', bankMsg)
+        }
+      }
+    }
+
     return NextResponse.json(
       {
         ok: true,
         status: submission!.status,
         message: submission!.message,
+        bankAccountId,
       },
       {
         headers: { 'Cache-Control': 'no-store' },
