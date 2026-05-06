@@ -112,11 +112,10 @@ export async function findRampContextByWalletPublicKey(
 /**
  * Quick org-level check + customer-level resolution.
  *
- * `GET /ramp/wallets` returns the **org ID** as `customerId` for every row,
- * which is NOT a valid customer ID for quote/order/KYC calls. So after
- * confirming the wallet exists at org level (fast, single call), we delegate
- * to {@link findRampContextByWalletPublicKey} which iterates through actual
- * customers to find the real `customerId` that owns this wallet.
+ * `GET /ramp/wallets` returns the **org ID** as `customerId` for every row.
+ * Tries per-customer resolution first. If no customer owns the wallet (sandbox
+ * org-level wallets), falls back to using the org-level `customerId` from the
+ * wallet row + the first active bank account from `/ramp/bank-accounts`.
  */
 export async function findRampContextFromOrgWallets(
   publicKey: string,
@@ -127,7 +126,7 @@ export async function findRampContextFromOrgWallets(
   if (!res.ok) return null;
 
   const target = normalizeStellarPublicKey(publicKey);
-  let walletExists = false;
+  let matchingRow: Record<string, unknown> | null = null;
   for (const row of json?.items ?? []) {
     const pk =
       typeof row.publicKey === "string"
@@ -145,12 +144,54 @@ export async function findRampContextFromOrgWallets(
     ).toLowerCase();
     if (bc && bc !== "stellar") continue;
     if (sameWalletKey(pk, target)) {
-      walletExists = true;
+      matchingRow = row;
       break;
     }
   }
 
-  if (!walletExists) return null;
+  if (!matchingRow) return null;
 
-  return findRampContextByWalletPublicKey(publicKey, opts);
+  // Prefer per-customer resolution (multi-customer orgs)
+  const customerCtx = await findRampContextByWalletPublicKey(publicKey, opts);
+  if (customerCtx) return customerCtx;
+
+  // Fallback: wallet exists at org level — use org ID + active bank account
+  const orgCustomerId =
+    typeof matchingRow.customerId === "string" ? matchingRow.customerId : null;
+  if (!orgCustomerId) return null;
+
+  const bankRes = await etherfuseFetch("/ramp/bank-accounts", { method: "GET" });
+  const { json: bankJson } = await etherfuseReadBody<{
+    items?: Record<string, unknown>[];
+  }>(bankRes);
+  const activeAccounts = (bankJson?.items ?? []).filter(
+    (r) => r.deletedAt == null,
+  );
+
+  // Prefer fallback bank account if still active
+  const fallbackId = opts?.fallbackBankAccountId?.trim();
+  const preferred =
+    fallbackId && activeAccounts.find((r) => r.bankAccountId === fallbackId || r.bank_account_id === fallbackId)
+      ? fallbackId
+      : null;
+
+  const bankAccountId =
+    preferred ??
+    (typeof activeAccounts[0]?.bankAccountId === "string"
+      ? activeAccounts[0].bankAccountId
+      : typeof activeAccounts[0]?.bank_account_id === "string"
+        ? activeAccounts[0].bank_account_id
+        : null) ??
+    fallbackId ??
+    null;
+
+  if (!bankAccountId) return null;
+
+  console.info(
+    "[findRampContextFromOrgWallets] usando org-level customerId:",
+    orgCustomerId,
+    "bankAccountId:",
+    bankAccountId,
+  );
+  return { customerId: orgCustomerId, bankAccountId };
 }

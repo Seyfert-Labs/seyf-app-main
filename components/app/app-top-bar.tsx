@@ -39,7 +39,7 @@ export default function AppTopBar() {
             </button>
           </SheetTrigger>
           <SheetContent side="right" className="flex flex-col gap-0 overflow-hidden p-0">
-            <SheetHeader className="shrink-0 space-y-1 border-b border-border bg-gradient-to-br from-violet-700/15 via-indigo-700/10 to-background px-4 py-4 pr-12 text-left">
+            <SheetHeader className="shrink-0 space-y-1 border-b border-border bg-gradient-to-br from-[#edf6f2] via-[#e5efea] to-[#d6e3dd] px-4 py-4 pr-12 text-left dark:from-[#0d3531]/80 dark:via-[#15534a]/60 dark:to-background">
               <SheetTitle className="text-lg font-bold tracking-tight">Tu cuenta</SheetTitle>
               <SheetDescription className="sr-only">
                 Perfil, dirección Stellar y sesión Pollar
