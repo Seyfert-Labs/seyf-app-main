@@ -173,11 +173,13 @@ export async function fetchEtherfuseKycStatus(
 export async function submitEtherfuseKycIdentityData(params: {
   customerId: string;
   pubkey?: string;
+  accountType?: string;
   identity: EtherfuseKycSubmitIdentity;
 }): Promise<{ status: EtherfuseKycStatus; message: string | null }> {
   const path = `/ramp/customer/${encodeURIComponent(params.customerId)}/kyc`;
   const body = {
     ...(params.pubkey ? { pubkey: params.pubkey } : {}),
+    accountType: params.accountType ?? 'personal',
     identity: params.identity,
   };
   const res = await etherfuseFetch(path, {
