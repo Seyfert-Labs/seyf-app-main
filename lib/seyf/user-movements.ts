@@ -3,6 +3,7 @@ import {
   fetchOrgOrdersAllPages,
   pickRampOrderTransactionDetails,
 } from "@/lib/etherfuse/orders-api";
+import { resolveMvpPartnerCryptoWalletId } from "@/lib/etherfuse/partner-accounts";
 import type { InvestmentRun } from "@/lib/seyf/investment-mvp";
 import { listRuns } from "@/lib/seyf/investment-mvp";
 import type { EtherfuseRampContext } from "@/lib/seyf/etherfuse-ramp-context";
@@ -184,6 +185,11 @@ export type FetchUserMovementsOptions = {
   etherfuseMaxPages?: number;
   /** Límite de filas ledger; por defecto 80. */
   ledgerRunsLimit?: number;
+  /**
+   * Clave pública Stellar del usuario. Necesaria para filtrar órdenes por
+   * walletId cuando el endpoint de customer devuelve vacío (sandbox org-level).
+   */
+  walletPublicKey?: string | null;
 };
 
 /**
@@ -195,6 +201,7 @@ export async function fetchUserMovements(
 ): Promise<UserMovement[]> {
   const ledgerLimit = options?.ledgerRunsLimit ?? 80;
   const etherfusePages = options?.etherfuseMaxPages;
+  const walletPublicKey = options?.walletPublicKey?.trim() || null;
 
   const out: UserMovement[] = [];
 
@@ -213,9 +220,26 @@ export async function fetchUserMovements(
             : await fetchCustomerOrdersAllPages(ctx.customerId);
       }
       // Fallback: si no hay contexto o el customer endpoint devolvió vacío,
-      // usar el endpoint de org para no perder órdenes en sandbox
+      // usar el endpoint de org y filtrar por walletId del usuario
       if (rows.length === 0) {
-        rows = await fetchOrgOrdersAllPages(etherfusePages ?? 20);
+        const orgRows = await fetchOrgOrdersAllPages(etherfusePages ?? 20);
+        if (walletPublicKey && orgRows.length > 0) {
+          // Resolver el walletId de este usuario para filtrar sólo sus órdenes
+          let userWalletId: string | null = null;
+          try {
+            userWalletId = await resolveMvpPartnerCryptoWalletId(walletPublicKey);
+          } catch {
+            // Si no se puede resolver el walletId, mostrar todas las órdenes de la org
+          }
+          rows = userWalletId
+            ? orgRows.filter((r) => {
+                const wid = typeof r.walletId === "string" ? r.walletId : typeof r.wallet_id === "string" ? r.wallet_id : null;
+                return wid === userWalletId;
+              })
+            : orgRows;
+        } else {
+          rows = orgRows;
+        }
       }
       const seenEf = new Set<string>();
       for (const row of rows) {
