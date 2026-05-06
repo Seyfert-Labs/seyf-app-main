@@ -610,41 +610,11 @@ export default function IdentidadClient({
         // noop
       }
 
-      const birthCompactForBank = dateOfBirth.replace(/-/g, '')
-      if (isPublicStellarTestnet() && birthCompactForBank.length === 8) {
-        try {
-          const ar = await fetch('/api/seyf/etherfuse/bank-account-testnet-auto', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              firstName: givenName,
-              paternalLastName,
-              maternalLastName,
-              birthDate: birthCompactForBank,
-              curp: curpValue,
-              rfc: rfcValue,
-            }),
-          })
-          if (!ar.ok) {
-            const j = (await ar.json().catch(() => ({}))) as {
-              error?: { message_es?: string }
-              debug_message?: string
-            }
-            console.warn('[identidad] bank autofill', ar.status, j)
-            const hint =
-              j.error?.message_es ??
-              (typeof j.debug_message === 'string' ? j.debug_message : null) ??
-              'No pudimos crear la cuenta de prueba (CLABE sintética). Revisa SEYF_TESTNET_SYNTHETIC_CLABE y los logs.'
-            setDocUploadError(hint)
-          }
-        } catch (e) {
-          console.warn('[identidad] bank autofill', e)
-          setDocUploadError(
-            e instanceof Error
-              ? e.message
-              : 'No pudimos completar el alta bancaria automática en testnet.',
-          )
-        }
+      // En testnet la cuenta bancaria requiere verificación manual en el dashboard de Etherfuse.
+      // La llamada automática a bank-account-testnet-auto está desactivada para evitar
+      // errores falsos post-KYC. El usuario debe crear/verificar la cuenta desde el dashboard.
+      if (isPublicStellarTestnet()) {
+        console.info('[identidad] testnet: omitiendo alta bancaria automática — verificar en dashboard Etherfuse')
       }
 
       setSuccess('Tu información se envió correctamente.')
