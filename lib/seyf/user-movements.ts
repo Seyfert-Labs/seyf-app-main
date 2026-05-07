@@ -6,7 +6,7 @@ import {
 import { etherfuseFetch, etherfuseReadBody } from "@/lib/etherfuse/client";
 import { normalizeStellarPublicKey } from "@/lib/etherfuse/stellar-public-key";
 import type { InvestmentRun } from "@/lib/seyf/investment-mvp";
-import { listRuns } from "@/lib/seyf/investment-mvp";
+import { listRunsForUser } from "@/lib/seyf/investment-mvp";
 import type { EtherfuseRampContext } from "@/lib/seyf/etherfuse-ramp-context";
 import type {
   MovimientoEstado,
@@ -49,6 +49,27 @@ async function resolveWalletIdByPublicKey(stellarPublicKey: string): Promise<str
     // red no disponible
   }
   return null;
+}
+
+/** Si el listado org incluye la cuenta Stellar en la fila, filtramos sin depender solo de walletId. */
+function orderRowMatchesStellarPublicKey(
+  row: Record<string, unknown>,
+  target: string,
+): boolean {
+  const want = normalizeStellarPublicKey(target);
+  for (const k of [
+    "publicKey",
+    "public_key",
+    "walletPublicKey",
+    "wallet_public_key",
+    "stellarPublicKey",
+    "stellar_public_key",
+    "cryptoWalletPublicKey",
+  ] as const) {
+    const v = row[k];
+    if (typeof v === "string" && normalizeStellarPublicKey(v) === want) return true;
+  }
+  return false;
 }
 
 function investAllowed(): boolean {
@@ -226,17 +247,20 @@ export type FetchUserMovementsOptions = {
  * Movimientos del usuario: ledger MVP (si aplica) + órdenes GET /ramp/customer/{id}/orders (Etherfuse FX API).
  */
 export async function fetchUserMovements(
-  ctx: Pick<EtherfuseRampContext, "customerId"> | null,
+  ctx: EtherfuseRampContext | null,
   options?: FetchUserMovementsOptions,
 ): Promise<UserMovement[]> {
   const ledgerLimit = options?.ledgerRunsLimit ?? 80;
   const etherfusePages = options?.etherfuseMaxPages;
-  const walletPublicKey = options?.walletPublicKey?.trim() || null;
+  const walletPublicKey =
+    options?.walletPublicKey?.trim() || ctx?.publicKey?.trim() || null;
 
   const out: UserMovement[] = [];
 
   if (investAllowed()) {
-    const runs = await listRuns(ledgerLimit);
+    const runs = walletPublicKey
+      ? await listRunsForUser(walletPublicKey, ledgerLimit)
+      : [];
     out.push(...runs.map(ledgerRunToMovement));
   }
 
@@ -249,21 +273,30 @@ export async function fetchUserMovements(
             ? await fetchCustomerOrdersAllPages(ctx.customerId, etherfusePages)
             : await fetchCustomerOrdersAllPages(ctx.customerId);
       }
-      // Fallback: si no hay contexto o el customer endpoint devolvió vacío,
-      // usar el endpoint de org y filtrar por walletId del usuario
+      // Fallback sandbox: órgenes a nivel org — nunca devolver todo el listado sin filtrar.
       if (rows.length === 0) {
         const orgRows = await fetchOrgOrdersAllPages(etherfusePages ?? 20);
         if (walletPublicKey && orgRows.length > 0) {
-          // Resolver el walletId real para este publicKey (sin usar env vars hardcodeadas)
           const userWalletId = await resolveWalletIdByPublicKey(walletPublicKey);
-          rows = userWalletId
+          let filtered = userWalletId
             ? orgRows.filter((r) => {
-                const wid = typeof r.walletId === "string" ? r.walletId : typeof r.wallet_id === "string" ? r.wallet_id : null;
+                const wid =
+                  typeof r.walletId === "string"
+                    ? r.walletId
+                    : typeof r.wallet_id === "string"
+                      ? r.wallet_id
+                      : null;
                 return wid === userWalletId;
               })
-            : orgRows;
+            : [];
+          if (filtered.length === 0) {
+            filtered = orgRows.filter((r) =>
+              orderRowMatchesStellarPublicKey(r as Record<string, unknown>, walletPublicKey),
+            );
+          }
+          rows = filtered;
         } else {
-          rows = orgRows;
+          rows = [];
         }
       }
       const seenEf = new Set<string>();

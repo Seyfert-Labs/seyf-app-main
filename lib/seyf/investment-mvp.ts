@@ -119,6 +119,14 @@ export async function listRuns(limit = 50): Promise<InvestmentRun[]> {
   return runs.slice(0, limit)
 }
 
+/** Solo movimientos de prueba asociados a este `userId` (evita mezclar historiales entre cuentas). */
+export async function listRunsForUser(userId: string, limit = 50): Promise<InvestmentRun[]> {
+  const uid = userId.trim()
+  if (!uid) return []
+  const { runs } = await loadLedger()
+  return runs.filter((r) => r.userId === uid).slice(0, limit)
+}
+
 export async function getLedgerMeta() {
   const ledger = await loadLedger()
   return {

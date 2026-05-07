@@ -14,7 +14,9 @@ export async function GET(request: Request) {
     })
     
     // Get the new API response format
-    const apiResponse = await buildDashboardApiResponse()
+    const apiResponse = await buildDashboardApiResponse({
+      walletPublicKeyHint: wallet.length > 0 ? wallet : null,
+    })
     
     // If no active cycle, keep API compatibility by returning both:
     // - the new shape signal (`no_active_cycle`)

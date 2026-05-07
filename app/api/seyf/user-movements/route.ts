@@ -11,10 +11,9 @@ export async function GET(req: Request) {
     const wallet = new URL(req.url).searchParams.get('wallet')?.trim() ?? ''
     const walletHint = wallet.length > 0 ? wallet : null
     const ctx = await resolveEtherfuseRampContext({ walletPublicKeyHint: walletHint })
-    const movements = await fetchUserMovements(
-      ctx ? { customerId: ctx.customerId } : null,
-      { walletPublicKey: walletHint },
-    )
+    const movements = await fetchUserMovements(ctx, {
+      walletPublicKey: walletHint,
+    })
     return NextResponse.json({ movements }, {
       headers: { 'Cache-Control': 'no-store, max-age=0' },
     })
