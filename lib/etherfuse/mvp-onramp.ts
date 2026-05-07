@@ -15,6 +15,7 @@ import {
   fetchOrgOrdersAllPages,
   findPendingOnrampOrderForAmount,
 } from "./orders-api";
+import { AppError } from "@/lib/seyf/api-error";
 
 function quoteIdFromPayload(q: unknown): string | undefined {
   if (!q || typeof q !== "object") return undefined;
@@ -154,21 +155,26 @@ export async function executeMvpPartnerOnramp(params: {
     throw new Error("Cotización sin quoteId");
   }
 
-  let cryptoWalletId: string | undefined;
+  let cryptoWalletId: string;
   try {
     cryptoWalletId = await resolveMvpPartnerCryptoWalletId(identity.publicKey);
-  } catch {
-    cryptoWalletId = undefined;
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : String(e);
+    throw new AppError("validation_error", {
+      retryable: false,
+      message: detail,
+      messageEs:
+        "Tu wallet Stellar no aparece en Etherfuse para esta API key. Completa /identidad (KYC y registro de wallet) o revisa el panel de Etherfuse.",
+    });
   }
 
   let orderJson: unknown;
   try {
+    // Solo cryptoWalletId: con publicKey a veces Etherfuse responde "Proxy account not found" aunque el UUID exista.
     orderJson = await createMxOnrampOrder({
       bankAccountId: identity.bankAccountId,
       quoteId,
-      publicKey: identity.publicKey,
-      // Stellar: Etherfuse suele exigir cryptoWalletId; sin él aparece "Proxy account not found" (400).
-      ...(cryptoWalletId ? { cryptoWalletId } : {}),
+      cryptoWalletId,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "";

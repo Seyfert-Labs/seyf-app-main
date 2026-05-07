@@ -10,6 +10,15 @@ export function mapEtherfuseHttpError(
   status: number,
   providerMessage: string,
 ): AppError {
+  // Status inválido (p. ej. 0) — no caer en el fallback generic_error silencioso
+  if (!Number.isFinite(status) || status < 100 || status > 599) {
+    return new AppError("provider_unavailable", {
+      statusCode: 502,
+      retryable: true,
+      message: `HTTP status inválido (${String(status)}): ${providerMessage}`,
+    });
+  }
+
   // 429 — rate limited, retryable
   if (status === 429) {
     return new AppError("provider_unavailable", {

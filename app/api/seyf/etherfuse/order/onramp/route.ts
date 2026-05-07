@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { extractOrderIdFromCreateOrderResponse } from "@/lib/etherfuse/order-create-response";
 import { createMxOnrampOrder } from "@/lib/etherfuse/ramp-api";
+import { resolveMvpPartnerCryptoWalletId } from "@/lib/etherfuse/partner-accounts";
 import { acceptAllEtherfuseAgreements } from "@/lib/etherfuse/agreements";
 import { generateOnboardingPresignedUrlResolving409 } from "@/lib/etherfuse/onboarding";
 import { AppError, toErrorResponse } from "@/lib/seyf/api-error";
@@ -88,12 +89,14 @@ export async function POST(req: Request) {
       customerId: ctx.customerId,
       publicKey: ctx.publicKey,
     });
-    const buildOrder = () =>
-      createMxOnrampOrder({
+    const buildOrder = async () => {
+      const cryptoWalletId = await resolveMvpPartnerCryptoWalletId(ctx.publicKey);
+      return createMxOnrampOrder({
         bankAccountId: ctx.bankAccountId,
         quoteId: parsed.data.quoteId,
-        publicKey: ctx.publicKey,
+        cryptoWalletId,
       });
+    };
     let order: unknown;
     try {
       order = await buildOrder();

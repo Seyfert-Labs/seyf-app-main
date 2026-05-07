@@ -48,6 +48,14 @@ describe("mapEtherfuseHttpError() — unit tests", () => {
     expect(err.statusCode).toBe(400);
     expect(err.retryable).toBe(false);
   });
+
+  it("maps invalid HTTP status to provider_unavailable 502", () => {
+    const err = mapEtherfuseHttpError(Number.NaN, "body");
+    expect(err.code).toBe("provider_unavailable");
+    expect(err.statusCode).toBe(502);
+    const err0 = mapEtherfuseHttpError(0, "timeout");
+    expect(err0.code).toBe("provider_unavailable");
+  });
 });
 
 describe("mapEtherfuseNetworkError() — unit tests", () => {
