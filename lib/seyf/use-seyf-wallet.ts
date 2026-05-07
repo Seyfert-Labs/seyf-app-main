@@ -4,6 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usePollar } from '@pollar/react'
 import type { WalletBalanceState } from '@pollar/core'
 
+import {
+  isValidStellarPublicKey,
+  normalizeStellarPublicKey,
+} from '@/lib/etherfuse/stellar-public-key'
+
 export type SeyfWalletSession = {
   stellarAddress: string
   publicKey: string
@@ -122,6 +127,30 @@ export function useSeyfWallet() {
     }
   }, [isAuthenticated, walletAddress, sessionEmail, createdAtIso])
 
+  /** Solo StrKey G… válida para hints a Etherfuse (cinta Pollar). A veces `walletAddress` es otro id. */
+  const etherfusePublicKeyHint = useMemo(() => {
+    if (!wallet?.stellarAddress) return null
+    const raw = wallet.stellarAddress.trim()
+    if (isValidStellarPublicKey(raw)) return normalizeStellarPublicKey(raw)
+    try {
+      const auth = getClientRef.current().getAuthState()
+      if (auth.step !== 'authenticated') return null
+      const w = auth.session?.wallet as
+        | { publicKey?: unknown; stellarPublicKey?: unknown }
+        | undefined
+      const pk =
+        typeof w?.publicKey === 'string'
+          ? w.publicKey
+          : typeof w?.stellarPublicKey === 'string'
+            ? w.stellarPublicKey
+            : null
+      if (pk && isValidStellarPublicKey(pk)) return normalizeStellarPublicKey(pk)
+    } catch {
+      return null
+    }
+    return null
+  }, [wallet?.stellarAddress])
+
   /** Solo `loading`: si incluimos `idle`, el panel de cuenta se queda en skeleton hasta el primer fetch (y confunde con errores de API). */
   const balanceLoading =
     isAuthenticated && !!walletAddress && walletBalance.step === 'loading'
@@ -139,6 +168,7 @@ export function useSeyfWallet() {
 
   return {
     wallet,
+    etherfusePublicKeyHint,
     balance: xlmBalance,
     assetBalances,
     loading,

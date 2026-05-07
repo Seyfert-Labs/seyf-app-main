@@ -11,9 +11,17 @@ import { assertEtherfuseKycApproved } from "@/lib/seyf/etherfuse-kyc-guard";
 import { resolveEtherfuseRampContext } from "@/lib/seyf/etherfuse-ramp-context";
 import { guardEtherfuseRampRoutes } from "@/lib/seyf/etherfuse-ramp-guard";
 import { acquireOnrampLock, releaseOnrampLock } from "@/lib/seyf/redis-guards";
+import { resolveEffectiveBankAccountIdForOnramp } from "@/lib/seyf/etherfuse-readiness";
+import { saveStoredOnboardingSession } from "@/lib/seyf/onboarding-session-store";
+import {
+  isRecoverableRegisterWalletConflict,
+  registerOrganizationWallet,
+} from "@/lib/etherfuse/wallets";
+
+const uuidLike = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const bodySchema = z.object({
-  quoteId: z.string().uuid(),
+  quoteId: z.string().min(1).max(128).refine((s) => uuidLike.test(s.trim()), "quoteId debe ser un UUID"),
   wallet: z.string().optional(), // wallet hint para buscar sesión en Redis
 });
 
@@ -85,15 +93,40 @@ export async function POST(req: Request) {
     );
   }
   try {
+    let bankAccountId = ctx.bankAccountId;
+    const effectiveBank = await resolveEffectiveBankAccountIdForOnramp({
+      customerId: ctx.customerId,
+      preferredBankAccountId: ctx.bankAccountId,
+    });
+    if (effectiveBank !== ctx.bankAccountId) {
+      bankAccountId = effectiveBank;
+      await saveStoredOnboardingSession({
+        customerId: ctx.customerId,
+        bankAccountId,
+        walletPublicKey: ctx.publicKey,
+      });
+    }
+
     await assertEtherfuseKycApproved({
       customerId: ctx.customerId,
       publicKey: ctx.publicKey,
     });
+
+    try {
+      await registerOrganizationWallet({
+        publicKey: ctx.publicKey,
+        blockchain: "stellar",
+        claimOwnership: true,
+      });
+    } catch (e) {
+      if (!isRecoverableRegisterWalletConflict(e)) throw e;
+    }
+
     const buildOrder = async () => {
       const cryptoWalletId = await resolveMvpPartnerCryptoWalletId(ctx.publicKey);
       return createMxOnrampOrderStellarResilient({
-        bankAccountId: ctx.bankAccountId,
-        quoteId: parsed.data.quoteId,
+        bankAccountId,
+        quoteId: parsed.data.quoteId.trim(),
         publicKey: ctx.publicKey,
         cryptoWalletId,
       });
@@ -106,7 +139,7 @@ export async function POST(req: Request) {
       if (msg.toLowerCase().includes("terms and conditions")) {
         await ensureAgreementsForWallet({
           customerId: ctx.customerId,
-          bankAccountId: ctx.bankAccountId,
+          bankAccountId,
           publicKey: ctx.publicKey,
         });
         order = await buildOrder();

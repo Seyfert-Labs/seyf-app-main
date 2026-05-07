@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { etherfuseFetch, etherfuseReadBody } from '@/lib/etherfuse/client'
-import { isEtherfuseDevPanelEnabled } from '@/lib/seyf/etherfuse-dev-panel'
+import { isSandboxFiatReceivedProxyEnabled } from '@/lib/seyf/etherfuse-dev-panel'
 
 const bodySchema = z.object({
   orderId: z.string().uuid(),
@@ -9,11 +9,12 @@ const bodySchema = z.object({
 
 /**
  * POST /api/seyf/etherfuse/sandbox/fiat-received
- * Solo con isEtherfuseDevPanelEnabled(). Simula depósito MXN en sandbox.
+ * Activo en `NODE_ENV=development`, con SEYF_ETHERFUSE_DEV_PANEL=true, o si ETHERFUSE_API_BASE_URL
+ * apunta al host sandbox (`api.sand.etherfuse.com`). Simula depósito MXN solo en ese entorno API.
  * @see https://docs.etherfuse.com/sandbox-api/fiat-received
  */
 export async function POST(req: Request) {
-  if (!isEtherfuseDevPanelEnabled()) {
+  if (!isSandboxFiatReceivedProxyEnabled()) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 

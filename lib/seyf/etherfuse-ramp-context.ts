@@ -16,8 +16,8 @@ import { isEtherfuseDevPanelEnabled } from "@/lib/seyf/etherfuse-dev-panel";
  *   borra la cookie (p. ej. «Reiniciar prueba» en /identidad) o los UUIDs apuntan a otro tenant.
  * - Si el usuario no terminó KYC / términos / CLABE en Etherfuse, la API puede rechazar cotización u orden
  *   aunque la cookie sea válida; [devnet](https://devnet.etherfuse.com/ramp) puede mostrar otro estado que la API.
- * - `getEtherfuseRampContext` **prioriza siempre la cookie** sobre MVP: con cookie presente no se usan
- *   `ETHERFUSE_MVP_*` salvo rutas que acepten `useMvpIdentity: true` (p. ej. prueba mxn-cetes forzando solo MVP).
+ * - Con `walletPublicKeyHint` distinto de la clave en la cookie de /identidad, **no** se usa
+ *   esa cookie (se resuelve solo por Redis u org lookup); evita cotizar con un customer y ordenar con otro.
  * - El portal Etherfuse pide «conectar wallet» para firmar; debe ser la **misma** `publicKey` que en Seyf
  *   (`/identidad` o MVP). Seyf no integra Freighter en el browser: la vinculación es servidor vía API + cookie.
  */
@@ -59,51 +59,56 @@ export async function resolveEtherfuseRampContext(options?: {
     }
   }
 
-  // 2. Cookie httpOnly — fallback si Redis no tiene datos (primera sesión, Redis vacío)
+  // 2. Cookie httpOnly — solo si no mandaron wallet o la wallet coincide con /identidad.
+  // Si el body trae otra clave Stellar (p. ej. Pollar ≠ cookie), usar la cookie aquí
+  // rompía cotización vs orden (400 en /ramp/order: quote de otro customerId).
   const session = await getEtherfuseOnboardingSession();
   if (session) {
     const sessionPk = normalizeStellarPublicKey(session.publicKey);
+    const cookieApplies = !hintPk || sessionPk === hintPk;
 
-    if (hintPk && sessionPk === hintPk) {
-      // Verificar si el Etherfuse API conoce un customerId diferente (cookie stale)
-      try {
-        const found = await findRampContextFromOrgWallets(hintPk, {
-          fallbackBankAccountId: session.bankAccountId,
-        });
-        if (found?.customerId && found.bankAccountId && found.customerId !== session.customerId) {
-          // Cookie stale — guardar en Redis con los IDs correctos
-          void saveStoredOnboardingSession({
-            customerId: found.customerId,
-            bankAccountId: found.bankAccountId,
-            walletPublicKey: hintPk,
+    if (cookieApplies) {
+      if (hintPk && sessionPk === hintPk) {
+        // Verificar si el Etherfuse API conoce un customerId diferente (cookie stale)
+        try {
+          const found = await findRampContextFromOrgWallets(hintPk, {
+            fallbackBankAccountId: session.bankAccountId,
           });
-          return {
-            customerId: found.customerId,
-            publicKey: hintPk,
-            bankAccountId: found.bankAccountId,
-            source: "wallet_lookup",
-          };
+          if (found?.customerId && found.bankAccountId && found.customerId !== session.customerId) {
+            // Cookie stale — guardar en Redis con los IDs correctos
+            void saveStoredOnboardingSession({
+              customerId: found.customerId,
+              bankAccountId: found.bankAccountId,
+              walletPublicKey: hintPk,
+            });
+            return {
+              customerId: found.customerId,
+              publicKey: hintPk,
+              bankAccountId: found.bankAccountId,
+              source: "wallet_lookup",
+            };
+          }
+        } catch {
+          // network error — usar cookie como está
         }
-      } catch {
-        // network error — usar cookie como está
       }
-    }
 
-    // Seed Redis con la cookie válida para requests futuros (sin Redis)
-    if (hintPk && sessionPk === hintPk) {
-      void saveStoredOnboardingSession({
+      // Seed Redis con la cookie válida para requests futuros (sin Redis)
+      if (hintPk && sessionPk === hintPk) {
+        void saveStoredOnboardingSession({
+          customerId: session.customerId,
+          bankAccountId: session.bankAccountId,
+          walletPublicKey: hintPk,
+        });
+      }
+
+      return {
         customerId: session.customerId,
+        publicKey: session.publicKey,
         bankAccountId: session.bankAccountId,
-        walletPublicKey: hintPk,
-      });
+        source: "cookie",
+      };
     }
-
-    return {
-      customerId: session.customerId,
-      publicKey: session.publicKey,
-      bankAccountId: session.bankAccountId,
-      source: "cookie",
-    };
   }
 
   // 3. Etherfuse org wallet lookup — dispositivo nuevo sin Redis ni cookie.

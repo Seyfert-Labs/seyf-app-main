@@ -16,14 +16,7 @@ import {
   findPendingOnrampOrderForAmount,
 } from "./orders-api";
 import { AppError } from "@/lib/seyf/api-error";
-
-function quoteIdFromPayload(q: unknown): string | undefined {
-  if (!q || typeof q !== "object") return undefined;
-  const o = q as Record<string, unknown>;
-  if (typeof o.quoteId === "string") return o.quoteId;
-  if (typeof o.quote_id === "string") return o.quote_id;
-  return undefined;
-}
+import { quoteIdFromEtherfusePayload } from "@/lib/etherfuse/quote-id";
 
 function depositFromCreateOrderResponse(data: unknown): {
   orderId: string;
@@ -150,7 +143,7 @@ export async function executeMvpPartnerOnramp(params: {
     sourceAmount: params.sourceAmount,
     targetAssetIdentifier: targetAsset,
   });
-  const quoteId = quoteIdFromPayload(quote);
+  const quoteId = quoteIdFromEtherfusePayload(quote);
   if (!quoteId) {
     throw new Error("Cotización sin quoteId");
   }

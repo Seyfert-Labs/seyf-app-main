@@ -28,14 +28,14 @@ function parseSeyfErrorPayload(data: unknown): string {
 }
 
 export default function DepositClabeSection() {
-  const { wallet } = useSeyfWallet()
+  const { wallet, etherfusePublicKeyHint } = useSeyfWallet()
   const [info, setInfo] = useState<DepositInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [activating, setActivating] = useState(false)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const walletAddr = wallet?.stellarAddress?.trim() ?? ''
+  const walletAddr = etherfusePublicKeyHint?.trim() ?? ''
 
   const fetchInfo = async (opts?: { silent?: boolean }) => {
     const quiet = opts?.silent === true

@@ -60,7 +60,23 @@ export function mapEtherfuseHttpError(
     const low = providerMessage.toLowerCase();
     const messageEs = low.includes("proxy account")
       ? "Etherfuse no localizó la cuenta proxy Stellar de tu wallet. Ve a /anadir y activa la cuenta CLABE, asegúrate de que el KYC esté listo y que en Etherfuse la wallet y la cuenta bancaria estén activas; luego reintenta el bono."
-      : undefined;
+      : low.includes("expired") ||
+          low.includes("expire") ||
+          low.includes("caduc") ||
+          low.includes("invalid quote") ||
+          low.includes("quote not found")
+        ? "La cotización ya no es válida (~2 min) o no coincide con tu sesión. Cierra y vuelve a pulsar «Ver datos para transferir»."
+        : low.includes("nonstable") ||
+            low.includes("non_stable") ||
+            low.includes("nonstableasset")
+          ? "El activo de destino no es válido para esta rampa. Deja vacío el campo «Activo (opcional)» o revisa en Etherfuse que CETES/MXNe figuren en /ramp/assets para tu wallet."
+          : (low.includes("bank") && low.includes("account")) ||
+              low.includes("clabe") ||
+              low.includes("fiat account")
+            ? "Revisa en devnet que la cuenta bancaria y la CLABE estén activas y coincidan con /identidad."
+            : low.includes("not eligible") || low.includes("not_eligible")
+              ? "Tu perfil en Etherfuse aún no puede cotizar esta operación. Completa KYC y términos en devnet y vuelve a intentar."
+              : undefined;
     return new AppError("provider_rejected", {
       statusCode: 400,
       retryable: false,

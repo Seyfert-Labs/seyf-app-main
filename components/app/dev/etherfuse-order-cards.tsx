@@ -6,11 +6,18 @@ import {
   pickRampOrderTransactionDetails,
 } from '@/lib/etherfuse/orders-api'
 
-export function pickQuoteId(body: unknown): string | null {
+export function pickQuoteId(body: unknown, depth = 0): string | null {
+  if (depth > 5) return null
   if (!body || typeof body !== 'object') return null
   const o = body as Record<string, unknown>
-  const id = o.quoteId ?? o.quote_id
-  return typeof id === 'string' && id.length > 0 ? id : null
+  const nested = o.quote
+  if (nested && typeof nested === 'object') {
+    const inner = pickQuoteId(nested, depth + 1)
+    if (inner) return inner
+  }
+  const id = o.quoteId ?? o.quote_id ?? o.id
+  if (typeof id !== 'string' || !id.trim()) return null
+  return id.trim()
 }
 
 export function DetailRow({

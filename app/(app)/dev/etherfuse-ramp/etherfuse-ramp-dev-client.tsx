@@ -7,7 +7,7 @@ import { AppPageBody } from '@/components/app/app-page-body'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { Input } from '@/components/ui/input'
-import { OrderTransactionDetailCard, pickQuoteId } from '@/components/app/dev/etherfuse-order-cards'
+import { OrderTransactionDetailCard } from '@/components/app/dev/etherfuse-order-cards'
 import { SpeiPaymentCard } from '@/components/app/dev/spei-payment-card'
 import { cn } from '@/lib/utils'
 import { useSeyfWallet } from '@/lib/seyf/use-seyf-wallet'
@@ -25,6 +25,7 @@ import {
   etherfuseDepositBlockedCopy,
   parseEtherfuseReadinessJson,
 } from '@/lib/seyf/etherfuse-readiness-cta'
+import { userFacingSeyfApiMessage } from '@/lib/seyf/parse-seyf-fetch-error'
 
 type RampContextPayload = {
   kycApproved: boolean
@@ -33,7 +34,7 @@ type RampContextPayload = {
 }
 
 export default function EtherfuseRampDevClient() {
-  const { wallet } = useSeyfWallet()
+  const { wallet, etherfusePublicKeyHint } = useSeyfWallet()
   const [busy, setBusy] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [targetOverride, setTargetOverride] = useState('')
@@ -126,56 +127,6 @@ export default function EtherfuseRampDevClient() {
     }
   }, [])
 
-  const performQuote = useCallback(async (): Promise<string> => {
-    const body: { sourceAmount: string; targetAsset?: string } = {
-      sourceAmount: sourceAmount.trim() || '500',
-    }
-    const t = targetOverride.trim()
-    if (t) body.targetAsset = t
-    const res = await fetch('/api/seyf/etherfuse/quote/onramp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
-    const data = await res.json().catch(() => ({}))
-    if (!res.ok) {
-      const msg =
-        typeof data.error === 'string'
-          ? data.error
-          : `${res.status} ${res.statusText}${Object.keys(data).length ? ` — ${JSON.stringify(data)}` : ''}`
-      throw new Error(msg)
-    }
-    return JSON.stringify(data, null, 2)
-  }, [sourceAmount, targetOverride])
-
-  const performOrder = useCallback(async (qJson: string): Promise<string> => {
-    let parsed: unknown
-    try {
-      parsed = JSON.parse(qJson || '{}')
-    } catch {
-      throw new Error('Cotización JSON inválida')
-    }
-    const inner =
-      parsed && typeof parsed === 'object' && 'quote' in (parsed as object)
-        ? (parsed as { quote: unknown }).quote
-        : parsed
-    const quoteId = pickQuoteId(inner)
-    if (!quoteId) {
-      throw new Error('No encuentro quoteId en la cotización (~2 min de validez)')
-    }
-    const walletAddr = wallet?.stellarAddress?.trim() ?? ''
-    const res = await fetch('/api/seyf/etherfuse/order/onramp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ quoteId, ...(walletAddr ? { wallet: walletAddr } : {}) }),
-    })
-    const data = await res.json().catch(() => ({}))
-    if (!res.ok) {
-      throw new Error(typeof data.error === 'string' ? data.error : res.statusText)
-    }
-    return JSON.stringify(data, null, 2)
-  }, [])
-
   const performFiatSimulation = useCallback(async (oJson: string): Promise<string> => {
     let parsed: unknown
     try {
@@ -196,7 +147,7 @@ export default function EtherfuseRampDevClient() {
     })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
-      throw new Error(typeof data.error === 'string' ? data.error : res.statusText)
+      throw new Error(userFacingSeyfApiMessage(data, res.status))
     }
 
     let orderPolled: unknown = null
@@ -235,8 +186,22 @@ export default function EtherfuseRampDevClient() {
 
   const openManualSpeiReview = () =>
     run('spei-manual-prepare', async () => {
-      const q = await performQuote()
-      const o = await performOrder(q)
+      const body: { sourceAmount: string; targetAsset?: string; wallet?: string } = {
+        sourceAmount: sourceAmount.trim() || '500',
+      }
+      const t = targetOverride.trim()
+      if (t) body.targetAsset = t
+      if (etherfusePublicKeyHint) body.wallet = etherfusePublicKeyHint
+      const res = await fetch('/api/seyf/etherfuse/onramp/prepare-transfer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(userFacingSeyfApiMessage(data, res.status))
+      }
+      const o = JSON.stringify(data, null, 2)
       const assetLabel =
         targetOverride.trim()
           ? targetOverride.trim().split(':')[0]?.trim() || 'CETES'
@@ -374,6 +339,13 @@ export default function EtherfuseRampDevClient() {
 
       {canOperate ? (
         <section className="space-y-3 rounded-[1.5rem] border border-[#bfd6ca] bg-[#f4faf7] p-4 dark:border-border dark:bg-card/80 sm:p-5">
+          {wallet && !etherfusePublicKeyHint ? (
+            <p className="rounded-xl border border-amber-500/35 bg-amber-500/[0.08] px-3 py-2 text-xs leading-relaxed text-amber-900 dark:text-amber-100/90">
+              Tu sesión Pollar muestra un identificador que aún no es una clave Stellar <span className="font-mono">G…</span> reconocible
+              por Etherfuse. El depósito usará la sesión de <Link href="/identidad" className="font-semibold underline">/identidad</Link>.
+              Si el error persiste, abre devnet y confirma KYC y cuenta bancaria.
+            </p>
+          ) : null}
           <div>
             <h2 className="text-base font-bold text-foreground">¿Cuánto vas a depositar?</h2>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -382,6 +354,8 @@ export default function EtherfuseRampDevClient() {
           </div>
           <Input
             id="manual-amount"
+            name="deposit-amount-mxn"
+            autoComplete="off"
             inputMode="decimal"
             value={sourceAmount}
             onChange={(e) => setSourceAmount(e.target.value)}
@@ -391,6 +365,8 @@ export default function EtherfuseRampDevClient() {
           />
           <Input
             id="manual-asset"
+            name="etherfuse-onramp-asset-override"
+            autoComplete="off"
             value={targetOverride}
             onChange={(e) => setTargetOverride(e.target.value)}
             placeholder="Activo (opcional, avanzado)"
@@ -423,14 +399,13 @@ export default function EtherfuseRampDevClient() {
       {speiDetails && pendingManualOrderJson ? (
         <Button
           type="button"
-          variant="secondary"
-          className="h-12 w-full rounded-2xl border border-border font-semibold"
+          className="h-12 w-full rounded-2xl border border-[#1b6155]/40 bg-gradient-to-br from-[#15534a] to-[#1b6155] text-[15px] font-bold text-white shadow-[0_8px_24px_rgba(21,83,74,0.35)] hover:from-[#1a5f52] hover:to-[#1f6d61] disabled:opacity-60 dark:border-emerald-950/30 dark:shadow-[0_8px_28px_rgba(8,42,36,0.45)]"
           disabled={!!busy || !canOperate}
           onClick={() => void confirmSpeiPayment()}
         >
           {speiConfirmBusy ? (
             <>
-              <Spinner className="size-4" />
+              <Spinner className="size-4 text-white" />
               Procesando…
             </>
           ) : (

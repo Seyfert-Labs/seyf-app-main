@@ -6,33 +6,24 @@ import {
   pickOnrampTargetIdentifier,
 } from "@/lib/etherfuse/ramp-api";
 import { toErrorResponse } from "@/lib/seyf/api-error";
-import { getEtherfuseRampContext } from "@/lib/seyf/etherfuse-ramp-context";
+import { resolveEtherfuseRampContext } from "@/lib/seyf/etherfuse-ramp-context";
 import { assertEtherfuseKycApproved } from "@/lib/seyf/etherfuse-kyc-guard";
 import { guardEtherfuseRampRoutes } from "@/lib/seyf/etherfuse-ramp-guard";
 
 const bodySchema = z.object({
   sourceAmount: z.string().min(1),
   targetAsset: z.string().min(5).optional(),
+  /** Misma wallet que en order/onramp — evita cotizar con cookie y ordenar con Redis distintos. */
+  wallet: z.string().optional(),
 });
 
 /**
  * POST /api/seyf/etherfuse/quote/onramp
- * Cuerpo: { sourceAmount: string, targetAsset?: string } (monto en MXN, ej. "1000")
+ * Cuerpo: { sourceAmount: string, targetAsset?: string, wallet?: string } (monto en MXN, ej. "1000")
  */
 export async function POST(req: Request) {
   const denied = guardEtherfuseRampRoutes();
   if (denied) return denied;
-
-  const ctx = await getEtherfuseRampContext();
-  if (!ctx) {
-    return NextResponse.json(
-      {
-        error:
-          "Sin contexto rampa: cookie /identidad o (solo dev) variables ETHERFUSE_MVP_* en .env.local.",
-      },
-      { status: 401 },
-    );
-  }
 
   let json: unknown;
   try {
@@ -44,6 +35,19 @@ export async function POST(req: Request) {
   const parsed = bodySchema.safeParse(json);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
+
+  const ctx = await resolveEtherfuseRampContext({
+    walletPublicKeyHint: parsed.data.wallet ?? null,
+  });
+  if (!ctx) {
+    return NextResponse.json(
+      {
+        error:
+          "Sin contexto rampa: completa /identidad, activa CLABE en /anadir o pasa `wallet` en el body.",
+      },
+      { status: 401 },
+    );
   }
 
   try {
