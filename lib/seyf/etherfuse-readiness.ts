@@ -16,10 +16,14 @@ type BankAccountRow = {
 function isBankRowActiveAndCompliant(row: BankAccountRow): boolean {
   if (row.deletedAt != null) return false
   const status = (row.status ?? '').toLowerCase()
-  if (status === 'active') return row.compliant === true
+  if (status === 'active') {
+    // Sandbox: a veces `compliant` llega tarde; en mainnet exigimos explícitamente compliant.
+    if (isPublicStellarTestnet()) return row.compliant !== false
+    return row.compliant === true
+  }
   // En sandbox/testnet, Etherfuse puede quedarse en awaitingDepositVerification aunque la cuenta ya exista.
   if (isPublicStellarTestnet() && status === 'awaitingdepositverification') {
-    return row.compliant === true
+    return row.compliant !== false
   }
   return false
 }
@@ -93,6 +97,49 @@ export type EtherfuseReadinessResult = {
 function pickBankAccountId(row: BankAccountRow): string | null {
   const id = row.bankAccountId ?? row.id
   return typeof id === 'string' && id.trim() ? id.trim() : null
+}
+
+/**
+ * Alinea el UUID de cuenta bancaria con una fila activa+compliant en Etherfuse.
+ * Evita onramps con IDs obsoletos en Redis/cookie (síntoma típico: "Proxy account not found").
+ */
+export async function resolveEffectiveBankAccountIdForOnramp(params: {
+  customerId: string
+  preferredBankAccountId: string
+}): Promise<string> {
+  const { customerId, preferredBankAccountId } = params
+  try {
+    const customerRes = await etherfuseFetch(
+      `/ramp/customer/${encodeURIComponent(customerId)}/bank-accounts`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pageSize: 30, pageNumber: 0 }),
+      },
+    )
+    const { json: customerJson } = await etherfuseReadBody<{ items?: BankAccountRow[] }>(
+      customerRes,
+    )
+    const customerItems = customerRes.ok ? customerJson?.items ?? [] : []
+
+    const orgRes = await etherfuseFetch('/ramp/bank-accounts', { method: 'GET' })
+    const { json: orgJson } = await etherfuseReadBody<{ items?: BankAccountRow[] }>(orgRes)
+    const orgItems = orgRes.ok ? orgJson?.items ?? [] : []
+
+    const merged = mergeBankAccountRows(customerItems, orgItems)
+    const picked = pickEffectiveBankAccountRow(merged, preferredBankAccountId)
+    if (picked.id && picked.row && isBankRowActiveAndCompliant(picked.row)) {
+      return picked.id
+    }
+    const anyActive = merged.find((x) => isBankRowActiveAndCompliant(x))
+    const fid = anyActive ? pickBankAccountId(anyActive) : null
+    if (fid) return fid
+  } catch (e) {
+    if (e instanceof Error) {
+      console.warn('[etherfuse-readiness] resolveEffectiveBankAccountIdForOnramp:', e.message)
+    }
+  }
+  return preferredBankAccountId
 }
 
 export async function computeEtherfuseReadiness(

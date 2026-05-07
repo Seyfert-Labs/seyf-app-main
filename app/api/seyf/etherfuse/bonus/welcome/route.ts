@@ -13,6 +13,12 @@ import { acceptAllEtherfuseAgreements } from '@/lib/etherfuse/agreements'
 import { generateOnboardingPresignedUrlResolving409 } from '@/lib/etherfuse/onboarding'
 import { upsertStoredAgreementsAccepted } from '@/lib/seyf/agreements-state-store'
 import { fetchOrderDetailsWithRetry, pickRampOrderTransactionDetails } from '@/lib/etherfuse/orders-api'
+import { resolveEffectiveBankAccountIdForOnramp } from '@/lib/seyf/etherfuse-readiness'
+import { saveStoredOnboardingSession } from '@/lib/seyf/onboarding-session-store'
+import {
+  isRecoverableRegisterWalletConflict,
+  registerOrganizationWallet,
+} from '@/lib/etherfuse/wallets'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -183,6 +189,31 @@ export async function POST(request: Request) {
       )
     }
 
+    let bankAccountId = ctx.bankAccountId
+    const effectiveBankAccountId = await resolveEffectiveBankAccountIdForOnramp({
+      customerId: ctx.customerId,
+      preferredBankAccountId: ctx.bankAccountId,
+    })
+    if (effectiveBankAccountId !== ctx.bankAccountId) {
+      console.info('[bonus/welcome] bankAccountId de sesión obsoleto; usando cuenta activa en Etherfuse')
+      bankAccountId = effectiveBankAccountId
+      await saveStoredOnboardingSession({
+        customerId: ctx.customerId,
+        bankAccountId,
+        walletPublicKey: ctx.publicKey,
+      })
+    }
+
+    try {
+      await registerOrganizationWallet({
+        publicKey: ctx.publicKey,
+        blockchain: 'stellar',
+        claimOwnership: true,
+      })
+    } catch (e) {
+      if (!isRecoverableRegisterWalletConflict(e)) throw e
+    }
+
     await assertEtherfuseKycApproved({ customerId: ctx.customerId, publicKey: ctx.publicKey })
 
     const { assets } = await fetchRampableAssetsForWallet({ walletPublicKey: ctx.publicKey })
@@ -203,7 +234,7 @@ export async function POST(request: Request) {
         identity: {
           customerId: ctx.customerId,
           publicKey: ctx.publicKey,
-          bankAccountId: ctx.bankAccountId,
+          bankAccountId,
         },
       })
 
@@ -222,7 +253,7 @@ export async function POST(request: Request) {
       if (msg.toLowerCase().includes('terms and conditions')) {
         await ensureAgreementsForWallet({
           customerId: ctx.customerId,
-          bankAccountId: ctx.bankAccountId,
+          bankAccountId,
           publicKey: ctx.publicKey,
         })
         ramp = await runBonusOnramp()
