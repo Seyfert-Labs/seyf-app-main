@@ -1,6 +1,4 @@
-import { AppError } from "@/lib/seyf/api-error";
-import { getEtherfuseConfig } from "./config";
-import { mapEtherfuseHttpError, mapEtherfuseNetworkError } from "./errors";
+import { getEtherfuseConfig } from "./config.ts";
 
 export const ETHERFUSE_DEFAULT_TIMEOUT_MS = 10_000;
 export const ETHERFUSE_MAX_RETRIES = 3;

@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import type { EtherfuseKycStatus } from "@/lib/etherfuse/kyc";
 import { getEtherfuseConfig, strictEtherfuseProductionConfig } from "@/lib/etherfuse/config";
 import { verifyEtherfuseWebhookSignature } from "@/lib/etherfuse/webhook-verify";
-import { upsertStoredKycSnapshot } from "@/lib/seyf/kyc-state-store";
-import { toErrorResponse } from "@/lib/seyf/api-error";
+import { pickRampOrderTransactionDetails } from "@/lib/etherfuse/orders-api";
+import { enqueueAutoDeployForDeposit } from "@/lib/seyf/spei-deposit-auto-deploy";
 
 export const runtime = "nodejs";
 
@@ -125,8 +125,25 @@ export async function POST(req: Request) {
       }
     }
 
-    return NextResponse.json({ ok: true });
-  } catch (e) {
-    return toErrorResponse(e, "webhooks/etherfuse");
+  try {
+    const details = pickRampOrderTransactionDetails(payload);
+    const isOnramp = (details.orderType ?? "").toLowerCase() === "onramp";
+    const isConfirmed = (details.status ?? "").toLowerCase() === "confirmed";
+
+    if (isOnramp && isConfirmed && details.orderId) {
+      void enqueueAutoDeployForDeposit({
+        depositId: details.orderId,
+        amountMxn:
+          details.amountInFiat && Number.isFinite(Number(details.amountInFiat))
+            ? Number(details.amountInFiat)
+            : null,
+      }).catch((error) => {
+        console.error("[webhook etherfuse] enqueueAutoDeployForDeposit failed", error);
+      });
+    }
+  } catch (error) {
+    console.error("[webhook etherfuse] handler error", error);
   }
+
+  return NextResponse.json({ ok: true });
 }

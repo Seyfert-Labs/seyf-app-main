@@ -1,6 +1,7 @@
 import type { InvestmentRun } from "@/lib/seyf/investment-mvp";
 import { listRuns, MOCK_ANNUAL_RATE_PERCENT, getLedgerMeta } from "@/lib/seyf/investment-mvp";
 import { fetchDashboardCetesSaldo, type DashboardCetesSaldo } from "@/lib/seyf/dashboard-cetes-saldo";
+import { getActiveCycle } from "@/lib/seyf/cycle-store";
 import { getEtherfuseRampContext } from "@/lib/seyf/etherfuse-ramp-context";
 import { fetchUserMovements } from "@/lib/seyf/user-movements";
 import {
@@ -11,9 +12,16 @@ import {
 export type { DashboardViewModel } from "@/lib/seyf/dashboard-view-model-types";
 export { DASHBOARD_MOVEMENTS_PREVIEW_LIMIT } from "@/lib/seyf/dashboard-view-model-types";
 
+function envVar(name: string): string | undefined {
+  const p = (globalThis as unknown as { process?: { env?: Record<string, string | undefined> } })
+    .process;
+  return p?.env?.[name];
+}
+
 function investAllowed(): boolean {
-  if (process.env.NODE_ENV !== "production") return true;
-  return process.env.SEYF_ALLOW_MOCK_INVEST === "true";
+  const nodeEnv = envVar("NODE_ENV");
+  if (nodeEnv !== "production") return true;
+  return envVar("SEYF_ALLOW_MOCK_INVEST") === "true";
 }
 
 function ledgerPrincipalMxn(runs: InvestmentRun[]): number {
@@ -25,8 +33,9 @@ function ledgerPrincipalMxn(runs: InvestmentRun[]): number {
 function oldestCompletedRun(runs: InvestmentRun[]): InvestmentRun | null {
   const done = runs.filter((r) => r.status === "completed");
   if (done.length === 0) return null;
-  return done.reduce((a, r) =>
-    new Date(r.createdAt) < new Date(a.createdAt) ? r : a,
+  return done.reduce(
+    (a, r) => (new Date(r.createdAt) < new Date(a.createdAt) ? r : a),
+    done[0],
   );
 }
 
@@ -57,6 +66,7 @@ const DASHBOARD_ETHERFUSE_ORDER_PAGES = 2;
  */
 export async function buildDashboardViewModel(): Promise<DashboardViewModel> {
   const ctx = await getEtherfuseRampContext();
+  const activeCycle = getActiveCycle("demo-user");
   const [cetesSaldo, investRuns, movementsAll] = await Promise.all([
     fetchDashboardCetesSaldo(ctx),
     investAllowed() ? listRuns(20) : Promise.resolve([] as InvestmentRun[]),
@@ -67,12 +77,15 @@ export async function buildDashboardViewModel(): Promise<DashboardViewModel> {
   ]);
 
   const ledgerPrincipal = ledgerPrincipalMxn(investRuns);
-  const principalMxn =
-    cetesSaldo.kind === "ok" ? cetesSaldo.principalMxn : ledgerPrincipal;
+  const cyclePrincipal = activeCycle?.principalMxn ?? 0;
+  let principalMxn: number;
+  if (cetesSaldo.kind === "ok") principalMxn = cetesSaldo.principalMxn;
+  else if (cyclePrincipal > 0) principalMxn = cyclePrincipal;
+  else principalMxn = ledgerPrincipal;
 
   const lastRate =
     investRuns[0]?.rateSnapshotAnnualPercent ?? MOCK_ANNUAL_RATE_PERCENT;
-  const tasaAnual = lastRate;
+  const tasaAnual = activeCycle?.referenceRateAnnualPercent ?? lastRate;
 
   const oldest = oldestCompletedRun(investRuns);
   const dias = oldest ? daysSince(oldest.createdAt) : 1;
